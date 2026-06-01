@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日程壁纸生成器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部栏 -->
+        <header class="header">
+            <h1>📅 日程壁纸生成器</h1>
+            <div class="header-actions">
+                <span class="auto-update-status" id="autoUpdateStatus">🟢 自动更新已启用</span>
+                <button class="btn btn-primary" id="generateBtn">生成壁纸</button>
+                <button class="btn btn-secondary" id="exportBtn">导出全部</button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <!-- 左侧配置面板 -->
+            <aside class="sidebar">
+                <!-- 背景设置 -->
+                <section class="panel">
+                    <h3>🎨 背景设置</h3>
+                    <div class="form-group">
+                        <label>背景模式</label>
+                        <select id="bgType">
+                            <option value="gradient">纯弥散光</option>
+                            <option value="custom">纯自定义图片</option>
+                            <option value="overlay">弥散光 + 图片叠加</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="customBgGroup" style="display:none">
+                        <label>上传背景图</label>
+                        <input type="file" id="bgUpload" accept="image/*">
+                        <div class="preview-box" id="bgPreview"></div>
+                    </div>
+                    <div id="gradientSettings">
+                        <div class="form-group">
+                            <label>光源数量</label>
+                            <div class="glow-count-selector" id="glowCount">
+                                <button data-count="1">1个</button>
+                                <button data-count="2">2个</button>
+                                <button data-count="3" class="active">3个</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>弥散光色系</label>
+                            <select id="glowPreset">
+                                <option value="blue-purple">蓝紫色（默认）</option>
+                                <option value="pink-orange">粉橙色</option>
+                                <option value="green-cyan">青绿色</option>
+                                <option value="gold-warm">金暖色</option>
+                                <option value="custom">自定义颜色</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="customColorGroup" style="display:none">
+                            <label>主光源颜色</label>
+                            <div class="color-row">
+                                <input type="color" id="glowColor1" value="#5078dc">
+                                <input type="color" id="glowColor2" value="#a064c8">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>光源位置</label>
+                            <div class="position-grid" id="glowPosition">
+                                <button data-pos="top-left">↖</button>
+                                <button data-pos="top-center">↑</button>
+                                <button data-pos="top-right" class="active">↗</button>
+                                <button data-pos="center-left">←</button>
+                                <button data-pos="center">●</button>
+                                <button data-pos="center-right">→</button>
+                                <button data-pos="bottom-left">↙</button>
+                                <button data-pos="bottom-center">↓</button>
+                                <button data-pos="bottom-right">↘</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>光源强度 <span id="glowIntensityVal">100%</span></label>
+                            <input type="range" id="glowIntensity" min="30" max="150" value="100">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 屏幕配置 -->
+                <section class="panel">
+                    <h3>🖥️ 屏幕配置</h3>
+                    <div id="screenList"></div>
+                    <button class="btn btn-small" id="addScreenBtn">+ 添加屏幕</button>
+                </section>
+
+                <!-- 日历范围 -->
+                <section class="panel">
+                    <h3>📆 日历范围</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>开始日期</label>
+                            <input type="date" id="calStart">
+                        </div>
+                        <div class="form-group">
+                            <label>结束日期</label>
+                            <input type="date" id="calEnd">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 倒计时目标 -->
+                <section class="panel">
+                    <h3>🎯 倒计时目标</h3>
+                    <div class="form-group">
+                        <label>目标名称</label>
+                        <input type="text" id="countdownName" placeholder="如：开题答辩">
+                    </div>
+                    <div class="form-group">
+                        <label>目标日期</label>
+                        <input type="date" id="countdownDate">
+                    </div>
+                </section>
+
+                <!-- 今日待办 -->
+                <section class="panel">
+                    <h3>✅ 今日待办</h3>
+                    <div id="todoList"></div>
+                    <div class="add-item-row">
+                        <input type="text" id="newTodoInput" placeholder="添加待办...">
+                        <button class="btn btn-small" id="addTodoBtn">+</button>
+                    </div>
+                </section>
+
+                <!-- 时间线事件 -->
+                <section class="panel">
+                    <h3>📊 时间线事件</h3>
+                    <div id="eventList"></div>
+                    <button class="btn btn-small" id="addEventBtn">+ 添加事件</button>
+                </section>
+
+                <!-- 关键节点 -->
+                <section class="panel">
+                    <h3>🏁 关键节点</h3>
+                    <div id="milestoneList"></div>
+                    <button class="btn btn-small" id="addMilestoneBtn">+ 添加节点</button>
+                </section>
+
+                <!-- 特殊标记 -->
+                <section class="panel">
+                    <h3>🎓 特殊标记</h3>
+                    <div id="markList"></div>
+                    <button class="btn btn-small" id="addMarkBtn">+ 添加标记</button>
+                </section>
+            </aside>
+
+            <!-- 右侧预览区 -->
+            <main class="preview-area">
+                <div class="preview-header">
+                    <span>预览</span>
+                    <select id="previewScreen"></select>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+                <div class="preview-footer">
+                    <span id="lastGenerated">上次生成：--</span>
+                    <span id="nextAutoUpdate">下次自动更新：--</span>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 事件编辑弹窗 -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <h3>编辑时间线事件</h3>
+            <div class="form-group">
+                <label>事件名称</label>
+                <input type="text" id="eventName">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>开始日期</label>
+                    <input type="date" id="eventStart">
+                </div>
+                <div class="form-group">
+                    <label>结束日期</label>
+                    <input type="date" id="eventEnd">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>颜色</label>
+                <input type="color" id="eventColor" value="#60a5fa">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelEventBtn">取消</button>
+                <button class="btn btn-primary" id="saveEventBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 节点编辑弹窗 -->
+    <div class="modal" id="milestoneModal">
+        <div class="modal-content">
+            <h3>编辑关键节点</h3>
+            <div class="form-group">
+                <label>节点名称</label>
+                <input type="text" id="milestoneName">
+            </div>
+            <div class="form-group">
+                <label>日期</label>
+                <input type="date" id="milestoneDate">
+            </div>
+            <div class="form-group">
+                <label>颜色</label>
+                <input type="color" id="milestoneColor" value="#4ade80">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelMilestoneBtn">取消</button>
+                <button class="btn btn-primary" id="saveMilestoneBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标记编辑弹窗 -->
+    <div class="modal" id="markModal">
+        <div class="modal-content">
+            <h3>编辑特殊标记</h3>
+            <div class="form-group">
+                <label>标记名称</label>
+                <input type="text" id="markName" placeholder="如：朋友考试">
+            </div>
+            <div class="form-group">
+                <label>日期</label>
+                <input type="date" id="markDate">
+            </div>
+            <div class="form-group">
+                <label>时间（可选）</label>
+                <input type="time" id="markTime">
+            </div>
+            <div class="form-group">
+                <label>图标</label>
+                <select id="markIcon">
+                    <option value="🎓">🎓 考试</option>
+                    <option value="🎂">🎂 生日</option>
+                    <option value="✈️">✈️ 出行</option>
+                    <option value="💼">💼 会议</option>
+                    <option value="🎉">🎉 庆祝</option>
+                    <option value="⚠️">⚠️ 注意</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelMarkBtn">取消</button>
+                <button class="btn btn-primary" id="saveMarkBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="wallpaper-engine.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
