@@ -34,7 +34,11 @@ class WallpaperApp {
         endDate.setDate(startDate.getDate() + 41); // 6周
 
         return {
-            bgType: 'gradient',
+            glowEnabled: true,
+            bgImageEnabled: false,
+            bgBrightness: 100,
+            bgBlur: 0,
+            bgVignette: 50,
             screens: [
                 { name: '主屏幕', width: 3840, height: 2400 }
             ],
@@ -88,13 +92,8 @@ class WallpaperApp {
      * 绑定DOM元素
      */
     bindElements() {
-        // 背景设置
-        this.bgTypeSelect = document.getElementById('bgType');
-        this.customBgGroup = document.getElementById('customBgGroup');
-        this.bgUpload = document.getElementById('bgUpload');
-        this.bgPreview = document.getElementById('bgPreview');
-        
         // 弥散光设置
+        this.glowEnabled = document.getElementById('glowEnabled');
         this.gradientSettings = document.getElementById('gradientSettings');
         this.glowCount = document.getElementById('glowCount');
         this.glowPreset = document.getElementById('glowPreset');
@@ -104,6 +103,18 @@ class WallpaperApp {
         this.glowPosition = document.getElementById('glowPosition');
         this.glowIntensity = document.getElementById('glowIntensity');
         this.glowIntensityVal = document.getElementById('glowIntensityVal');
+
+        // 背景图片设置
+        this.bgImageEnabled = document.getElementById('bgImageEnabled');
+        this.bgImageSettings = document.getElementById('bgImageSettings');
+        this.bgUpload = document.getElementById('bgUpload');
+        this.bgPreview = document.getElementById('bgPreview');
+        this.bgBrightness = document.getElementById('bgBrightness');
+        this.bgBrightnessVal = document.getElementById('bgBrightnessVal');
+        this.bgBlur = document.getElementById('bgBlur');
+        this.bgBlurVal = document.getElementById('bgBlurVal');
+        this.bgVignette = document.getElementById('bgVignette');
+        this.bgVignetteVal = document.getElementById('bgVignetteVal');
 
         // 屏幕配置
         this.screenList = document.getElementById('screenList');
@@ -140,12 +151,17 @@ class WallpaperApp {
 
         // 预览
         this.previewCanvas = document.getElementById('previewCanvas');
+        this.canvasContainer = document.getElementById('canvasContainer');
+        this.canvasOverlay = document.getElementById('canvasOverlay');
+        this.fullscreenPreviewBtn = document.getElementById('fullscreenPreviewBtn');
+        this.previewModal = document.getElementById('previewModal');
+        this.fullPreviewCanvas = document.getElementById('fullPreviewCanvas');
+        this.closePreviewBtn = document.getElementById('closePreviewBtn');
         this.lastGenerated = document.getElementById('lastGenerated');
-        this.nextAutoUpdate = document.getElementById('nextAutoUpdate');
         this.autoUpdateStatus = document.getElementById('autoUpdateStatus');
 
         // 操作按钮
-        this.generateBtn = document.getElementById('generateBtn');
+        this.setWallpaperBtn = document.getElementById('setWallpaperBtn');
         this.exportBtn = document.getElementById('exportBtn');
     }
 
@@ -153,10 +169,18 @@ class WallpaperApp {
      * 绑定事件
      */
     bindEvents() {
-        // 背景类型切换
-        this.bgTypeSelect.addEventListener('change', () => {
-            this.config.bgType = this.bgTypeSelect.value;
-            this.updateBgSettingsVisibility();
+        // 弥散光开关
+        this.glowEnabled.addEventListener('change', () => {
+            this.config.glowEnabled = this.glowEnabled.checked;
+            this.gradientSettings.style.display = this.config.glowEnabled ? 'block' : 'none';
+            this.saveConfig();
+            this.generatePreview();
+        });
+
+        // 背景图片开关
+        this.bgImageEnabled.addEventListener('change', () => {
+            this.config.bgImageEnabled = this.bgImageEnabled.checked;
+            this.bgImageSettings.style.display = this.config.bgImageEnabled ? 'block' : 'none';
             this.saveConfig();
             this.generatePreview();
         });
@@ -181,6 +205,30 @@ class WallpaperApp {
                 };
                 reader.readAsDataURL(file);
             }
+        });
+
+        // 图片亮度
+        this.bgBrightness.addEventListener('input', () => {
+            this.config.bgBrightness = parseInt(this.bgBrightness.value);
+            this.bgBrightnessVal.textContent = this.config.bgBrightness + '%';
+            this.saveConfig();
+            this.generatePreview();
+        });
+
+        // 图片模糊
+        this.bgBlur.addEventListener('input', () => {
+            this.config.bgBlur = parseInt(this.bgBlur.value);
+            this.bgBlurVal.textContent = this.config.bgBlur + 'px';
+            this.saveConfig();
+            this.generatePreview();
+        });
+
+        // 暗角强度
+        this.bgVignette.addEventListener('input', () => {
+            this.config.bgVignette = parseInt(this.bgVignette.value);
+            this.bgVignetteVal.textContent = this.config.bgVignette + '%';
+            this.saveConfig();
+            this.generatePreview();
         });
 
         // 光源数量
@@ -297,8 +345,13 @@ class WallpaperApp {
             });
         });
 
-        // 生成和导出
-        this.generateBtn.addEventListener('click', () => this.generatePreview());
+        // 预览放大
+        this.canvasContainer.addEventListener('click', () => this.showFullPreview());
+        this.fullscreenPreviewBtn.addEventListener('click', () => this.showFullPreview());
+        this.closePreviewBtn.addEventListener('click', () => this.hideModal('previewModal'));
+
+        // 一键设置壁纸
+        this.setWallpaperBtn.addEventListener('click', () => this.setAsWallpaper());
         this.exportBtn.addEventListener('click', () => this.exportAll());
     }
 
@@ -310,23 +363,24 @@ class WallpaperApp {
     }
 
     /**
-     * 更新背景设置显示状态
-     */
-    updateBgSettingsVisibility() {
-        const bgType = this.config.bgType;
-        // 图片上传：custom 或 overlay 模式显示
-        this.customBgGroup.style.display = (bgType === 'custom' || bgType === 'overlay') ? 'block' : 'none';
-        // 弥散光设置：gradient 或 overlay 模式显示
-        this.gradientSettings.style.display = (bgType === 'gradient' || bgType === 'overlay') ? 'block' : 'none';
-    }
-
-    /**
      * 渲染UI
      */
     renderUI() {
-        // 背景类型
-        this.bgTypeSelect.value = this.config.bgType || 'gradient';
-        this.updateBgSettingsVisibility();
+        // 弥散光开关
+        this.glowEnabled.checked = this.config.glowEnabled !== false;
+        this.gradientSettings.style.display = this.config.glowEnabled !== false ? 'block' : 'none';
+
+        // 背景图片开关
+        this.bgImageEnabled.checked = this.config.bgImageEnabled || false;
+        this.bgImageSettings.style.display = this.config.bgImageEnabled ? 'block' : 'none';
+
+        // 图片参数
+        this.bgBrightness.value = this.config.bgBrightness || 100;
+        this.bgBrightnessVal.textContent = (this.config.bgBrightness || 100) + '%';
+        this.bgBlur.value = this.config.bgBlur || 0;
+        this.bgBlurVal.textContent = (this.config.bgBlur || 0) + 'px';
+        this.bgVignette.value = this.config.bgVignette || 50;
+        this.bgVignetteVal.textContent = (this.config.bgVignette || 50) + '%';
 
         // 弥散光设置
         this.glowPreset.value = this.config.glowPreset || 'blue-purple';
@@ -374,6 +428,60 @@ class WallpaperApp {
         this.renderEvents();
         this.renderMilestones();
         this.renderMarks();
+    }
+
+    /**
+     * 显示全屏预览
+     */
+    showFullPreview() {
+        const screenIndex = parseInt(this.previewScreen.value) || 0;
+        const screen = this.config.screens[screenIndex];
+        
+        // 生成全分辨率壁纸到全屏canvas
+        this.fullPreviewCanvas.width = screen.width;
+        this.fullPreviewCanvas.height = screen.height;
+        
+        const fullCtx = this.fullPreviewCanvas.getContext('2d');
+        fullCtx.drawImage(this.previewCanvas, 0, 0, this.previewCanvas.width, this.previewCanvas.height, 
+                          0, 0, screen.width, screen.height);
+        
+        // 重新用引擎生成全分辨率
+        const tempCanvas = this.engine.canvas;
+        this.engine.canvas = this.fullPreviewCanvas;
+        this.engine.ctx = fullCtx;
+        this.engine.generate(screen.width, screen.height);
+        this.engine.canvas = tempCanvas;
+        this.engine.ctx = tempCanvas.getContext('2d');
+        
+        this.previewModal.classList.add('active');
+    }
+
+    /**
+     * 一键设置壁纸
+     */
+    async setAsWallpaper() {
+        const screenIndex = parseInt(this.previewScreen.value) || 0;
+        const screen = this.config.screens[screenIndex];
+        
+        // 生成全分辨率壁纸
+        this.engine.generate(screen.width, screen.height);
+        
+        // 导出为blob并下载到固定位置
+        const blob = await this.engine.toBlob();
+        
+        // 创建下载链接，下载到用户的下载目录
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'wallpaper.png';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        // 提示用户
+        this.showNotification('壁纸已生成', '请在下载目录找到 wallpaper.png 并设为桌面背景');
+        
+        // 更新预览
+        this.generatePreview();
     }
 
     /**
@@ -730,9 +838,6 @@ class WallpaperApp {
                 this.checkDateChange();
             }
         });
-
-        // 计算下次更新时间（明天0点）
-        this.updateNextAutoUpdateDisplay();
     }
 
     /**
@@ -747,20 +852,6 @@ class WallpaperApp {
             this.generatePreview();
             this.showNotification('壁纸已自动更新', '新的一天，壁纸已重新生成');
         }
-        
-        this.updateNextAutoUpdateDisplay();
-    }
-
-    /**
-     * 更新下次自动更新显示
-     */
-    updateNextAutoUpdateDisplay() {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        
-        this.nextAutoUpdate.textContent = `下次自动更新：明天 00:00`;
     }
 
     /**

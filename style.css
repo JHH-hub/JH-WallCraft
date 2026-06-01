@@ -116,7 +116,7 @@ body {
 
 /* 侧边栏 */
 .sidebar {
-    width: 360px;
+    flex: 1;
     background: var(--bg-panel);
     border-right: 1px solid var(--border-color);
     overflow-y: auto;
@@ -465,11 +465,13 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* 预览区 */
 .preview-area {
-    flex: 1;
+    width: 320px;
+    min-width: 280px;
     display: flex;
     flex-direction: column;
     padding: 16px;
     background: var(--bg-dark);
+    border-left: 1px solid var(--border-color);
 }
 
 .preview-header {
@@ -484,16 +486,23 @@ input[type="range"]::-webkit-slider-thumb {
     color: var(--text-secondary);
 }
 
+.preview-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .preview-header select {
-    padding: 6px 12px;
+    padding: 6px 10px;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .canvas-container {
+    position: relative;
     flex: 1;
     display: flex;
     align-items: center;
@@ -501,6 +510,8 @@ input[type="range"]::-webkit-slider-thumb {
     background: var(--bg-panel);
     border-radius: 8px;
     overflow: hidden;
+    cursor: pointer;
+    min-height: 180px;
 }
 
 .canvas-container canvas {
@@ -510,12 +521,87 @@ input[type="range"]::-webkit-slider-thumb {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
+.canvas-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.canvas-container:hover .canvas-overlay {
+    opacity: 1;
+}
+
 .preview-footer {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     margin-top: 12px;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
+}
+
+/* 全屏预览弹窗 */
+.fullscreen-preview {
+    width: 95vw;
+    height: 95vh;
+    max-width: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-dark);
+    position: relative;
+}
+
+.fullscreen-preview canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.fullscreen-preview .close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.fullscreen-preview .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 开关标签样式 */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.toggle-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
 }
 
 /* 弹窗 */

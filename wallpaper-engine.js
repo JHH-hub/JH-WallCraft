@@ -108,24 +108,16 @@ class WallpaperEngine {
         this.ctx.fillStyle = '#08080f';
         this.ctx.fillRect(0, 0, width, height);
 
-        const bgType = this.config.bgType || 'gradient';
+        const glowEnabled = this.config.glowEnabled !== false;
+        const bgImageEnabled = this.config.bgImageEnabled && this.customBgImage;
 
-        if (bgType === 'custom' && this.customBgImage) {
-            // 纯自定义图片
+        // 先画背景图片（如果启用）
+        if (bgImageEnabled) {
             this.drawCustomImage(width, height);
-            // 添加暗色遮罩
-            this.ctx.fillStyle = 'rgba(8, 8, 16, 0.5)';
-            this.ctx.fillRect(0, 0, width, height);
-        } else if (bgType === 'overlay' && this.customBgImage) {
-            // 先画图片
-            this.drawCustomImage(width, height);
-            // 添加暗色遮罩
-            this.ctx.fillStyle = 'rgba(8, 8, 16, 0.6)';
-            this.ctx.fillRect(0, 0, width, height);
-            // 再叠加弥散光
-            this.drawGradientBackground(width, height);
-        } else {
-            // 纯弥散光
+        }
+
+        // 再叠加弥散光（如果启用）
+        if (glowEnabled) {
             this.drawGradientBackground(width, height);
         }
     }
@@ -134,6 +126,17 @@ class WallpaperEngine {
      * 绘制自定义图片
      */
     drawCustomImage(width, height) {
+        const brightness = (this.config.bgBrightness || 100) / 100;
+        const blur = this.config.bgBlur || 0;
+        const vignette = (this.config.bgVignette || 50) / 100;
+
+        // 创建临时canvas来处理模糊
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // 计算图片绘制尺寸（cover模式）
         const imgRatio = this.customBgImage.width / this.customBgImage.height;
         const canvasRatio = width / height;
         
@@ -151,7 +154,39 @@ class WallpaperEngine {
             drawY = (height - drawHeight) / 2;
         }
         
-        this.ctx.drawImage(this.customBgImage, drawX, drawY, drawWidth, drawHeight);
+        // 绘制图片到临时canvas
+        tempCtx.drawImage(this.customBgImage, drawX, drawY, drawWidth, drawHeight);
+
+        // 应用模糊（如果有）
+        if (blur > 0) {
+            this.ctx.filter = `blur(${blur}px)`;
+        }
+        
+        // 绘制到主canvas
+        this.ctx.drawImage(tempCanvas, 0, 0);
+        this.ctx.filter = 'none';
+
+        // 应用亮度调整（通过叠加层）
+        if (brightness < 1) {
+            this.ctx.fillStyle = `rgba(8, 8, 16, ${1 - brightness})`;
+            this.ctx.fillRect(0, 0, width, height);
+        } else if (brightness > 1) {
+            this.ctx.fillStyle = `rgba(255, 255, 255, ${(brightness - 1) * 0.3})`;
+            this.ctx.fillRect(0, 0, width, height);
+        }
+
+        // 应用暗角效果
+        if (vignette > 0) {
+            const gradient = this.ctx.createRadialGradient(
+                width / 2, height / 2, 0,
+                width / 2, height / 2, Math.max(width, height) * 0.7
+            );
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(1, `rgba(8, 8, 16, ${vignette})`);
+            this.ctx.fillStyle = gradient;
+            this.ctx.fillRect(0, 0, width, height);
+        }
     }
 
     /**
