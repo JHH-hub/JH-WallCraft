@@ -225,11 +225,11 @@ class WallpaperEngine {
             this.ctx.fillText(wkNames[i], x - tw / 2, calTop);
         }
         // 月历范围：优先用 config，否则取当月 1 号 ~ 月末
-        const refDate  = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date();
+        const refDate  = this.config.calendarStart ? this.parseLocalDate(this.config.calendarStart) : new Date();
         const calYear  = refDate.getFullYear();
         const calMonth = refDate.getMonth();
-        const calStart = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date(calYear, calMonth, 1);
-        const calEnd   = this.config.calendarEnd   ? new Date(this.config.calendarEnd)   : new Date(calYear, calMonth + 1, 0);  // 月末最后一天
+        const calStart = this.config.calendarStart ? this.parseLocalDate(this.config.calendarStart) : new Date(calYear, calMonth, 1);
+        const calEnd   = this.config.calendarEnd   ? this.parseLocalDate(this.config.calendarEnd)   : new Date(calYear, calMonth + 1, 0);  // 月末最后一天
         // 网格从当月1号所在的周一开始
         const monthFirst  = new Date(calYear, calMonth, 1);
         const startWd     = monthFirst.getDay() || 7;  // 1=Mon..7=Sun
@@ -372,11 +372,11 @@ class WallpaperEngine {
         const { leftMargin, calTop, cellWidth, cellHeight, cols, rows, scale,
                 dateFontSize, smallFontSize, dateNumY, monthLabelY } = layout;
         const today = new Date(); today.setHours(0,0,0,0);
-        const refDate  = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date();
+        const refDate  = this.config.calendarStart ? this.parseLocalDate(this.config.calendarStart) : new Date();
         const calYear  = refDate.getFullYear();
         const calMonth = refDate.getMonth();
-        const calStart = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date(calYear, calMonth, 1);
-        const calEnd   = this.config.calendarEnd   ? new Date(this.config.calendarEnd)   : new Date(calYear, calMonth + 1, 0);
+        const calStart = this.config.calendarStart ? this.parseLocalDate(this.config.calendarStart) : new Date(calYear, calMonth, 1);
+        const calEnd   = this.config.calendarEnd   ? this.parseLocalDate(this.config.calendarEnd)   : new Date(calYear, calMonth + 1, 0);
         const monthFirst  = new Date(calYear, calMonth, 1);
         const startWd     = monthFirst.getDay() || 7;
         const firstMonday = new Date(monthFirst);
@@ -496,6 +496,14 @@ class WallpaperEngine {
 
     formatDate(date) {
         return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    }
+
+    // 按本地时间解析 YYYY-MM-DD，避免 new Date("2026-06-01") 被当作 UTC 导致东八区偏移问题
+    parseLocalDate(str) {
+        const [y, m, d] = str.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        dt.setHours(0, 0, 0, 0);
+        return dt;
     }
 
     hexToRgb(hex) {
