@@ -66,8 +66,8 @@ class WallpaperEngine {
             dateNumY:       Math.round(cellHeight * 0.28),
             monthLabelY:    Math.round(cellHeight * 0.13),
             timelineY:      Math.round(cellHeight * 0.42),
-            milestoneY:     Math.round(cellHeight * 0.62),
-            markY:          Math.round(cellHeight * 0.08),
+            milestoneY:     Math.round(cellHeight * 0.80),
+            markY:          Math.round(cellHeight * 0.80),
             markBarHeight:  Math.round(Math.max(14, cellHeight * 0.16)),
             eventBarHeight: Math.round(Math.max(14, cellHeight * 0.18)),
             titleFontSize: Math.round(56 * scale),
@@ -357,7 +357,7 @@ class WallpaperEngine {
             const lw     = this.ctx.measureText(label).width;
             const ph     = markBarHeight;
             const pw     = lw + Math.round(10 * scale);
-            const px = cell.x + cellWidth - pw - Math.round(6 * scale);
+            const px = cell.x + Math.round(8 * scale);
             const py = cell.y + markY;
             this.ctx.beginPath();
             this.roundRect(px, py, pw, ph, Math.round(5 * scale));
@@ -535,3 +535,4 @@ class WallpaperEngine {
 }
 
 window.WallpaperEngine = WallpaperEngine;
+
