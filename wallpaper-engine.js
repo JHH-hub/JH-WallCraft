@@ -224,10 +224,16 @@ class WallpaperEngine {
             const tw = this.ctx.measureText(wkNames[i]).width;
             this.ctx.fillText(wkNames[i], x - tw / 2, calTop);
         }
-        const calStart = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date();
-        const calEnd   = this.config.calendarEnd   ? new Date(this.config.calendarEnd)   : new Date(calStart.getTime() + 41 * 86400000);
-        const startWd     = calStart.getDay() || 7;
-        const firstMonday = new Date(calStart);
+        // 月历范围：优先用 config，否则取当月 1 号 ~ 月末
+        const refDate  = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date();
+        const calYear  = refDate.getFullYear();
+        const calMonth = refDate.getMonth();
+        const calStart = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date(calYear, calMonth, 1);
+        const calEnd   = this.config.calendarEnd   ? new Date(this.config.calendarEnd)   : new Date(calYear, calMonth + 1, 0);  // 月末最后一天
+        // 网格从当月1号所在的周一开始
+        const monthFirst  = new Date(calYear, calMonth, 1);
+        const startWd     = monthFirst.getDay() || 7;  // 1=Mon..7=Sun
+        const firstMonday = new Date(monthFirst);
         firstMonday.setDate(firstMonday.getDate() - (startWd - 1));
         const gridTop = calTop + Math.round(40 * scale);
         this.dateToCell = {};
@@ -245,10 +251,20 @@ class WallpaperEngine {
                 this.ctx.beginPath();
                 this.roundRect(x + pad, y + pad, cellWidth - pad*2, cellHeight - pad*2, radius);
                 if (isToday) {
-                    this.ctx.fillStyle   = 'rgba(30,50,80,0.8)';
+                    // 外发光（先画大一圈的半透明）
+                    this.ctx.save();
+                    this.ctx.shadowColor = '#60a5fa';
+                    this.ctx.shadowBlur  = Math.round(18 * scale);
+                    this.ctx.beginPath();
+                    this.roundRect(x + pad, y + pad, cellWidth - pad*2, cellHeight - pad*2, radius);
+                    this.ctx.fillStyle = 'rgba(30,70,140,0.95)';
                     this.ctx.fill();
+                    this.ctx.restore();
+                    // 再画清晰描边
+                    this.ctx.beginPath();
+                    this.roundRect(x + pad, y + pad, cellWidth - pad*2, cellHeight - pad*2, radius);
                     this.ctx.strokeStyle = '#60a5fa';
-                    this.ctx.lineWidth   = Math.round(2 * scale);
+                    this.ctx.lineWidth   = Math.round(2.5 * scale);
                     this.ctx.stroke();
                 } else if (inRange) {
                     this.ctx.strokeStyle = '#252535';
@@ -356,10 +372,14 @@ class WallpaperEngine {
         const { leftMargin, calTop, cellWidth, cellHeight, cols, rows, scale,
                 dateFontSize, smallFontSize, dateNumY, monthLabelY } = layout;
         const today = new Date(); today.setHours(0,0,0,0);
-        const calStart = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date();
-        const calEnd   = this.config.calendarEnd   ? new Date(this.config.calendarEnd)   : new Date(calStart.getTime() + 41 * 86400000);
-        const startWd     = calStart.getDay() || 7;
-        const firstMonday = new Date(calStart);
+        const refDate  = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date();
+        const calYear  = refDate.getFullYear();
+        const calMonth = refDate.getMonth();
+        const calStart = this.config.calendarStart ? new Date(this.config.calendarStart) : new Date(calYear, calMonth, 1);
+        const calEnd   = this.config.calendarEnd   ? new Date(this.config.calendarEnd)   : new Date(calYear, calMonth + 1, 0);
+        const monthFirst  = new Date(calYear, calMonth, 1);
+        const startWd     = monthFirst.getDay() || 7;
+        const firstMonday = new Date(monthFirst);
         firstMonday.setDate(firstMonday.getDate() - (startWd - 1));
         const gridTop = calTop + Math.round(40 * scale);
         let cur = new Date(firstMonday);
