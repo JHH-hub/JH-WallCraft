@@ -271,7 +271,7 @@ class WallpaperEngine {
                     this.ctx.lineWidth   = Math.round(1 * scale);
                     this.ctx.stroke();
                 } else {
-                    this.ctx.strokeStyle = '#151520';
+                    this.ctx.strokeStyle = '#1e1e2e';
                     this.ctx.lineWidth   = Math.round(1 * scale);
                     this.ctx.stroke();
                 }
@@ -391,7 +391,7 @@ class WallpaperEngine {
                 const isToday = cur.getTime() === today.getTime();
                 const isWknd  = col >= 5;
                 let numColor;
-                if      (!inRange) numColor = '#252530';
+                if      (!inRange) numColor = '#555570';
                 else if (isToday)  numColor = '#60a5fa';
                 else if (isWknd)   numColor = '#ff9999';
                 else               numColor = '#ffffff';
