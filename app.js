@@ -32,7 +32,6 @@ class WallpaperApp {
         startDate.setDate(today.getDate() - today.getDay() + 1); // 本周一
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + 41); // 6周
-
         return {
             glowEnabled: true,
             bgImageEnabled: false,
@@ -45,8 +44,8 @@ class WallpaperApp {
             calendarStart: this.formatDate(startDate),
             calendarEnd: this.formatDate(endDate),
             countdown: {
-                name: '开题答辩',
-                date: '2026-06-29'
+                name: '答辩',
+                date: '2026-06-24'
             },
             todos: [
                 { text: '完成《画皮》第6关动画', done: false },
@@ -56,14 +55,21 @@ class WallpaperApp {
             events: [
                 { name: '确定研究框架', start: '2026-05-25', end: '2026-06-04', color: '#60a5fa' },
                 { name: '文献综述', start: '2026-06-06', end: '2026-06-09', color: '#60a5fa' },
+                { name: '开题报告撰写', start: '2026-06-10', end: '2026-06-16', color: '#fb923c' },
+                { name: '答辩准备', start: '2026-06-18', end: '2026-06-23', color: '#f87171' },
             ],
             milestones: [
                 { name: '框架确定', date: '2026-06-05', color: '#60a5fa' },
                 { name: '综述完成', date: '2026-06-10', color: '#60a5fa' },
+                { name: '交开题报告表', date: '2026-06-17', color: '#f59e0b' },
+                { name: '答辩', date: '2026-06-24', color: '#f43f5e' },
             ],
             marks: [
                 { name: '朋友考试', date: '2026-06-08', time: '22:30', icon: '🎓' },
                 { name: '朋友考试', date: '2026-06-09', time: '20:00', icon: '🎓' },
+                { name: '朋友考试', date: '2026-06-12', time: '22:30', icon: '🎓' },
+                { name: '朋友考试', date: '2026-06-15', time: '22:30', icon: '🎓' },
+                { name: '朋友考试', date: '2026-06-20', time: '18:30', icon: '🎓' },
             ],
             autoUpdate: true
         };
