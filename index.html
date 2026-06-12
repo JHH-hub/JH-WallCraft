@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -149,6 +149,21 @@
                     <div class="add-item-row">
                         <input type="text" id="newTodoInput" placeholder="添加待办...">
                         <button class="btn btn-small" id="addTodoBtn">+</button>
+                    </div>
+                    <div class="assetdesk-import" style="margin-top:10px;padding-top:10px;border-top:1px solid #252535;">
+                        <label style="font-size:12px;color:#666688;display:block;margin-bottom:6px;">
+                            📦 从 AssetDesk 导入未完成槽位
+                        </label>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input type="file" id="assetdeskFile" accept=".jsonl" style="display:none">
+                            <button class="btn btn-small" id="assetdeskImportBtn" style="flex:1">
+                                选择 events.jsonl
+                            </button>
+                            <button class="btn btn-small" id="assetdeskClearBtn" title="清除已导入的槽位" style="padding:4px 8px">
+                                🗑
+                            </button>
+                        </div>
+                        <div id="assetdeskStatus" style="font-size:11px;color:#666688;margin-top:5px;min-height:16px;"></div>
                     </div>
                 </section>
 
