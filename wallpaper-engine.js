@@ -400,7 +400,9 @@ class WallpaperEngine {
                 if (cur.getDate() === 1 && inRange) {
                     this.ctx.font      = `${smallFontSize}px "Microsoft YaHei", sans-serif`;
                     this.ctx.fillStyle = '#4ade80';
-                    this.ctx.fillText(`${cur.getMonth() + 1}月`, x + xOff, y + monthLabelY);
+                    const mlLabel = `${cur.getMonth() + 1}月`;
+                    const mlW     = this.ctx.measureText(mlLabel).width;
+                    this.ctx.fillText(mlLabel, x + cellWidth - mlW - xOff, y + monthLabelY);
                 }
                 this.ctx.font      = `bold ${dateFontSize}px "Microsoft YaHei", sans-serif`;
                 this.ctx.fillStyle = numColor;
