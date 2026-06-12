@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 壁纸渲染引擎
  * 负责在 Canvas 上绘制日历壁纸
  *
@@ -43,6 +43,7 @@ class WallpaperEngine {
         this.drawDates(layout);
         this.drawLegend(layout);
         this.drawTodos(layout);
+        this.drawAssetDeskPanel(layout);
         this.drawFooter(layout);
 
         return this.canvas;
@@ -472,6 +473,85 @@ class WallpaperEngine {
             this.ctx.fillText(displayText, todoX + cbSize + Math.round(10 * scale), todoY + Math.round(cbSize * 0.78));
             todoY += itemGap;
         }
+    }
+
+
+    drawAssetDeskPanel(layout) {
+        const snapshot = this.config.assetDeskSnapshot;
+        if (!snapshot) return;
+
+        const { leftMargin, calTop, cellWidth, cols, scale } = layout;
+        const panelX = leftMargin + cols * cellWidth + Math.round(60 * scale);
+        const panelW = Math.round(620 * scale);
+        let panelY = calTop + Math.round(360 * scale);
+        const pad = Math.round(22 * scale);
+        const line = Math.round(30 * scale);
+        const radius = Math.round(22 * scale);
+
+        const summary = snapshot.weekSummary || {};
+        const status = snapshot.assetStatus || {};
+        const projects = Array.isArray(status.projects) ? status.projects.slice(0, 4) : [];
+        const warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings.slice(0, 2) : [];
+
+        const panelH = Math.round((170 + projects.length * 34 + warnings.length * 30) * scale);
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.roundRect(panelX, panelY, panelW, panelH, radius);
+        this.ctx.fillStyle = 'rgba(10, 12, 24, 0.56)';
+        this.ctx.fill();
+        this.ctx.strokeStyle = 'rgba(96, 165, 250, 0.28)';
+        this.ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+        this.ctx.stroke();
+
+        let y = panelY + pad;
+        this.ctx.font = `bold ${Math.round(24 * scale)}px "Microsoft YaHei", sans-serif`;
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.fillText('AssetDesk 状态', panelX + pad, y + Math.round(24 * scale));
+
+        y += Math.round(48 * scale);
+        this.ctx.font = `bold ${Math.round(34 * scale)}px "Microsoft YaHei", sans-serif`;
+        this.ctx.fillStyle = '#60a5fa';
+        this.ctx.fillText(`${summary.pending_total ?? 0}`, panelX + pad, y + Math.round(34 * scale));
+        this.ctx.font = `${Math.round(18 * scale)}px "Microsoft YaHei", sans-serif`;
+        this.ctx.fillStyle = '#aab0d6';
+        this.ctx.fillText(`待推进资产 · ${summary.project_count ?? 0} 个项目`, panelX + pad + Math.round(74 * scale), y + Math.round(30 * scale));
+
+        y += Math.round(58 * scale);
+        this.ctx.font = `${Math.round(18 * scale)}px "Microsoft YaHei", sans-serif`;
+        this.ctx.fillStyle = '#cfd5ff';
+        const todo = summary.todo ?? 0;
+        const partial = summary.partial ?? 0;
+        this.ctx.fillText(`待处理 ${todo}    进行中 ${partial}`, panelX + pad, y);
+
+        y += Math.round(30 * scale);
+        this.ctx.font = `${Math.round(17 * scale)}px "Microsoft YaHei", sans-serif`;
+        for (const project of projects) {
+            const name = this.truncateText(project.name || 'AssetDesk', Math.round(260 * scale));
+            this.ctx.fillStyle = '#d8dcff';
+            this.ctx.fillText(name, panelX + pad, y);
+            this.ctx.fillStyle = '#7dd3fc';
+            this.ctx.fillText(`${project.total || 0}`, panelX + panelW - pad - Math.round(36 * scale), y);
+            y += line;
+        }
+
+        if (warnings.length) {
+            this.ctx.fillStyle = '#fb923c';
+            for (const warning of warnings) {
+                this.ctx.fillText(this.truncateText(`提示：${warning}`, Math.round(500 * scale)), panelX + pad, y);
+                y += line;
+            }
+        }
+        this.ctx.restore();
+    }
+
+    truncateText(text, maxWidth) {
+        const value = String(text || '');
+        if (this.ctx.measureText(value).width <= maxWidth) return value;
+        let out = value;
+        while (out.length > 0 && this.ctx.measureText(out + '…').width > maxWidth) {
+            out = out.slice(0, -1);
+        }
+        return out + '…';
     }
 
     drawFooter(layout) {

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -152,15 +152,15 @@
                     </div>
                     <div class="assetdesk-import" style="margin-top:10px;padding-top:10px;border-top:1px solid #252535;">
                         <label style="font-size:12px;color:#666688;display:block;margin-bottom:6px;">
-                            📦 从 AssetDesk 导入未完成槽位
+                            从 AssetDesk 同步今日焦点
                         </label>
                         <div style="display:flex;gap:6px;align-items:center;">
                             <input type="file" id="assetdeskFile" accept=".jsonl" style="display:none">
                             <button class="btn btn-small" id="assetdeskImportBtn" style="flex:1">
-                                选择 events.jsonl
+                                同步 AssetDesk
                             </button>
-                            <button class="btn btn-small" id="assetdeskClearBtn" title="清除已导入的槽位" style="padding:4px 8px">
-                                🗑
+                            <button class="btn btn-small" id="assetdeskClearBtn" title="清理已同步的 AssetDesk 项目" style="padding:4px 8px">
+                                清理
                             </button>
                         </div>
                         <div id="assetdeskStatus" style="font-size:11px;color:#666688;margin-top:5px;min-height:16px;"></div>
@@ -306,6 +306,7 @@
     </div>
 
     <script src="wallpaper-engine.js"></script>
+    <script src="assetdesk-client.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

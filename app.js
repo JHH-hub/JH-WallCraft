@@ -1,10 +1,11 @@
-﻿/**
+/**
  * 日程壁纸生成器 - 应用主逻辑
  */
 
 class WallpaperApp {
     constructor() {
         this.engine = new WallpaperEngine();
+        this.assetDeskClient = window.AssetDeskClient ? new AssetDeskClient() : null;
         this.config = this.loadConfig();
         this.customBgImage = null;
         this.lastGeneratedDate = null;
@@ -619,78 +620,60 @@ class WallpaperApp {
      * silent=true 时失败不显示错误（用于启动时静默尝试）
      */
     async importFromAssetDesk(silent = false) {
+        if (!this.assetDeskClient) {
+            if (this.assetdeskStatus) {
+                this.assetdeskStatus.textContent = 'AssetDesk 客户端未加载';
+                this.assetdeskStatus.style.color = '#fb923c';
+            }
+            return;
+        }
+
         if (this.assetdeskStatus) {
-            this.assetdeskStatus.textContent = '⏳ 连接 AssetDesk...';
+            this.assetdeskStatus.textContent = '正在连接 AssetDesk...';
             this.assetdeskStatus.style.color = '#8888aa';
         }
-        try {
-            const res = await fetch('http://127.0.0.1:18765/slots', {
-                signal: AbortSignal.timeout(3000)
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
 
-            if (!data.ok) throw new Error(data.error || '服务返回错误');
-
-            const pending = data.pending || [];
-
-            if (pending.length === 0) {
-                if (this.assetdeskStatus) {
-                    this.assetdeskStatus.textContent = '✅ 没有未完成的槽位';
-                    this.assetdeskStatus.style.color = '#4ade80';
-                }
-                // 清空旧条目
-                this.config.todos = this.config.todos.filter(t => !t.fromAssetDesk);
-                this.saveConfig();
-                this.renderTodos();
-                this.generatePreview();
-                return;
-            }
-
-            const newTodos = pending.map(e => {
-                const proj  = e.project_name || e.pid || '未知项目';
-                const level = e.level_name   || e.lid || '';
-                const label = e.slot_label   || e.slot_type || '';
-                const state = e.to_state === 'partial' ? ' (进行中)' : '';
-                const text  = `[${proj}] ${level} · ${label}${state}`.replace(/\s+/g, ' ').trim();
-                return { text, done: false, fromAssetDesk: true };
-            });
-
-            this.config.todos = this.config.todos.filter(t => !t.fromAssetDesk);
-            this.config.todos.push(...newTodos);
-
-            this.saveConfig();
-            this.renderTodos();
-            this.generatePreview();
-
+        const result = await this.assetDeskClient.getWallpaperData();
+        if (!result.ok) {
+            console.warn('AssetDesk 同步失败', result.error);
             if (this.assetdeskStatus) {
-                this.assetdeskStatus.textContent = `✅ 已同步 ${newTodos.length} 条未完成槽位`;
-                this.assetdeskStatus.style.color = '#4ade80';
+                this.assetdeskStatus.textContent = silent ? 'AssetDesk 未连接' : `AssetDesk 未连接：${result.error || '请先启动 AssetDesk'}`;
+                this.assetdeskStatus.style.color = silent ? '#444455' : '#fb923c';
             }
+            return;
+        }
 
-        } catch (err) {
-            console.warn('AssetDesk 连接失败', err);
-            if (!silent && this.assetdeskStatus) {
-                this.assetdeskStatus.textContent = '⚠️ AssetDesk 未启动，可手动刷新';
-                this.assetdeskStatus.style.color = '#fb923c';
-            } else if (this.assetdeskStatus) {
-                this.assetdeskStatus.textContent = '📦 AssetDesk 未连接';
-                this.assetdeskStatus.style.color = '#444455';
-            }
+        const snapshot = result.data;
+        const newTodos = this.assetDeskClient.toTodos(snapshot);
+        this.config.assetDeskSnapshot = snapshot;
+        this.config.todos = this.config.todos.filter(t => !t.fromAssetDesk);
+        this.config.todos.push(...newTodos);
+
+        this.saveConfig();
+        this.renderTodos();
+        this.generatePreview();
+
+        if (this.assetdeskStatus) {
+            const summary = snapshot.weekSummary || {};
+            const count = summary.pending_total ?? newTodos.length;
+            const suffix = result.fromCache ? '（使用上次快照）' : '';
+            this.assetdeskStatus.textContent = count > 0
+                ? `已同步 ${count} 个资产焦点${suffix}`
+                : `AssetDesk 暂无待处理资产${suffix}`;
+            this.assetdeskStatus.style.color = result.fromCache ? '#fb923c' : '#4ade80';
         }
     }
 
-    /**
-     * 清除所有从 AssetDesk 导入的待办条目
-     */
     clearAssetDeskTodos() {
         const before = this.config.todos.length;
         this.config.todos = this.config.todos.filter(t => !t.fromAssetDesk);
         const removed = before - this.config.todos.length;
+        this.config.assetDeskSnapshot = null;
+        if (this.assetDeskClient) this.assetDeskClient.clearSnapshot();
         this.saveConfig();
         this.renderTodos();
         this.generatePreview();
-        this.assetdeskStatus.textContent = removed > 0 ? `🗑 已清除 ${removed} 条导入条目` : '没有已导入的条目';
+        this.assetdeskStatus.textContent = removed > 0 ? `已清理 ${removed} 个 AssetDesk 项目` : '没有已导入的 AssetDesk 项目';
         this.assetdeskStatus.style.color = '#8888aa';
     }
 
