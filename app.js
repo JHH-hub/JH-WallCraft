@@ -45,33 +45,18 @@ class WallpaperApp {
             calendarStart: this.formatDate(startDate),
             calendarEnd: this.formatDate(endDate),
             countdown: {
-                name: '答辩',
-                date: '2026-06-24'
+                name: '毕业答辩',
+                date: '2027-06-01'
             },
-            todos: [
-                { text: '完成《画皮》第6关动画', done: false },
-                { text: '检查素材评审反馈', done: false },
-                { text: '阅读2篇核心文献', done: false },
-            ],
+            todos: [],
             events: [
-                { name: '确定研究框架', start: '2026-05-25', end: '2026-06-04', color: '#60a5fa' },
-                { name: '文献综述', start: '2026-06-06', end: '2026-06-09', color: '#60a5fa' },
-                { name: '开题报告撰写', start: '2026-06-10', end: '2026-06-16', color: '#fb923c' },
-                { name: '答辩准备', start: '2026-06-18', end: '2026-06-23', color: '#f87171' },
+                { name: '论文正文写作', start: '2026-07-01', end: '2026-09-30', color: '#60a5fa' },
+                { name: '实验调研', start: '2026-10-01', end: '2026-12-31', color: '#fb923c' },
             ],
             milestones: [
-                { name: '框架确定', date: '2026-06-05', color: '#60a5fa' },
-                { name: '综述完成', date: '2026-06-10', color: '#60a5fa' },
-                { name: '交开题报告表', date: '2026-06-17', color: '#f59e0b' },
-                { name: '答辩', date: '2026-06-24', color: '#f43f5e' },
+                { name: '开题答辩✅', date: '2026-06-24', color: '#4ade80' },
             ],
-            marks: [
-                { name: '朋友考试', date: '2026-06-08', time: '22:30', icon: '🎓' },
-                { name: '朋友考试', date: '2026-06-09', time: '20:00', icon: '🎓' },
-                { name: '朋友考试', date: '2026-06-12', time: '22:30', icon: '🎓' },
-                { name: '朋友考试', date: '2026-06-15', time: '22:30', icon: '🎓' },
-                { name: '朋友考试', date: '2026-06-20', time: '18:30', icon: '🎓' },
-            ],
+            marks: [],
             autoUpdate: true
         };
     }
@@ -179,6 +164,11 @@ class WallpaperApp {
         this.assetdeskImportBtn = document.getElementById('assetdeskImportBtn');
         this.assetdeskClearBtn  = document.getElementById('assetdeskClearBtn');
         this.assetdeskStatus    = document.getElementById('assetdeskStatus');
+
+        // 备忘录
+        this.memoList     = document.getElementById('memoList');
+        this.newMemoInput = document.getElementById('newMemoInput');
+        this.addMemoBtn   = document.getElementById('addMemoBtn');
     }
 
     /**
@@ -373,6 +363,12 @@ class WallpaperApp {
         // AssetDesk 联动
         this.assetdeskImportBtn.addEventListener('click', () => this.importFromAssetDesk(false));
         this.assetdeskClearBtn.addEventListener('click', () => this.clearAssetDeskTodos());
+
+        // 备忘录
+        if (this.addMemoBtn) {
+            this.addMemoBtn.addEventListener('click', () => this.addMemo());
+            this.newMemoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.addMemo(); });
+        }
     }
 
     /**
@@ -445,6 +441,7 @@ class WallpaperApp {
         // 渲染列表
         this.renderScreens();
         this.renderTodos();
+        this.renderMemos();
         this.renderEvents();
         this.renderMilestones();
         this.renderMarks();
@@ -675,6 +672,51 @@ class WallpaperApp {
         this.generatePreview();
         this.assetdeskStatus.textContent = removed > 0 ? `已清理 ${removed} 个 AssetDesk 项目` : '没有已导入的 AssetDesk 项目';
         this.assetdeskStatus.style.color = '#8888aa';
+    }
+
+    // ===== 备忘录 =====
+
+    renderMemos() {
+        if (!this.memoList) return;
+        const memos = this.config.memos || [];
+        this.memoList.innerHTML = memos.map((memo, i) => `
+            <div class="list-item" data-index="${i}">
+                <input type="checkbox" ${memo.done ? 'checked' : ''} onchange="app.toggleMemo(${i})">
+                <span class="item-text" style="${memo.done ? 'text-decoration:line-through;color:#555' : ''}">${memo.text}</span>
+                <div class="item-actions">
+                    <button onclick="app.deleteMemo(${i})">×</button>
+                </div>
+            </div>
+        `).join('') || '<div style="color:#555;font-size:12px;padding:4px 0">暂无备忘</div>';
+    }
+
+    addMemo() {
+        const input = this.newMemoInput;
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+        if (!this.config.memos) this.config.memos = [];
+        this.config.memos.push({ text, done: false, createdAt: new Date().toISOString() });
+        input.value = '';
+        this.saveConfig();
+        this.renderMemos();
+        this.generatePreview();
+    }
+
+    toggleMemo(index) {
+        if (!this.config.memos) return;
+        this.config.memos[index].done = !this.config.memos[index].done;
+        this.saveConfig();
+        this.renderMemos();
+        this.generatePreview();
+    }
+
+    deleteMemo(index) {
+        if (!this.config.memos) return;
+        this.config.memos.splice(index, 1);
+        this.saveConfig();
+        this.renderMemos();
+        this.generatePreview();
     }
 
     /**

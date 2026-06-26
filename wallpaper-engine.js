@@ -1,12 +1,9 @@
 /**
  * 壁纸渲染引擎
- * 负责在 Canvas 上绘制日历壁纸
- *
- * 格子内布局区域（高度比例）：
- *   0%  ~  35% : 日期数字（左上）+ mark标签（右上）
- *   35% ~  60% : 时间线事件条（跨格居中）
- *   60% ~  85% : milestone标签
- *   85% ~ 100% : 留白
+ * 布局（新版）：
+ *   上方：Header（年月 + 倒计时 + 今日）
+ *   中间：日历（横向铺满，左右边距对称）
+ *   下方：三栏横排 — 今日待办 | AssetDesk进度 | 备忘录
  */
 
 class WallpaperEngine {
@@ -42,8 +39,7 @@ class WallpaperEngine {
         this.drawMarks(layout);
         this.drawDates(layout);
         this.drawLegend(layout);
-        this.drawTodos(layout);
-        this.drawAssetDeskPanel(layout);
+        this.drawBottomPanels(layout);
         this.drawFooter(layout);
 
         return this.canvas;
@@ -51,32 +47,49 @@ class WallpaperEngine {
 
     calculateLayout(width, height) {
         const scale = width / 3840;
-        const cellWidth  = Math.round(310 * scale);
-        const cellHeight = Math.round(175 * scale);
+        // 右侧 2/3 区域：左边距从 1/3 处开始，右边距对称
+        const sideMargin = Math.round(80 * scale);
+        const leftStart  = Math.round(width / 3);  // 左侧 1/3 留空给图标
+        const calWidth   = width - leftStart - sideMargin;
+        const cols       = 7;
+        const cellWidth  = Math.floor(calWidth / cols);
+        const cellHeight = Math.round(148 * scale);
+        const topMargin  = Math.round(80 * scale);
+        const headerH    = Math.round(160 * scale);
+        const calTop     = topMargin + headerH;
+        const rows       = 6;
+        const calH       = cellHeight * rows + Math.round(48 * scale); // weekday label + grid
+        const bottomY    = calTop + calH + Math.round(32 * scale);
 
         return {
             width, height, scale,
-            leftMargin:  Math.round(1150 * scale),
-            rightMargin: Math.round(120  * scale),
-            topMargin:   Math.round(100  * scale),
-            calTop:     Math.round(250 * scale),
+            sideMargin,
+            leftStart,
+            leftMargin:  leftStart,
+            rightMargin: sideMargin,
+            topMargin,
+            headerH,
+            calTop,
+            calWidth,
             cellWidth,
             cellHeight,
-            cols: 7,
-            rows: 6,
-            dateNumY:       Math.round(cellHeight * 0.28),
-            monthLabelY:    Math.round(cellHeight * 0.13),
-            timelineY:      Math.round(cellHeight * 0.42),
-            milestoneY:     Math.round(cellHeight * 0.80),
-            markY:          Math.round(cellHeight * 0.80),
-            markBarHeight:  Math.round(Math.max(14, cellHeight * 0.16)),
+            cols,
+            rows,
+            bottomY,   // 下方三栏起始 Y
+            bottomH: height - bottomY - Math.round(50 * scale), // 可用高度
+            dateNumY:       Math.round(cellHeight * 0.30),
+            monthLabelY:    Math.round(cellHeight * 0.14),
+            timelineY:      Math.round(cellHeight * 0.44),
+            milestoneY:     Math.round(cellHeight * 0.78),
+            markY:          Math.round(cellHeight * 0.60),
+            markBarHeight:  Math.round(Math.max(14, cellHeight * 0.17)),
             eventBarHeight: Math.round(Math.max(14, cellHeight * 0.18)),
-            titleFontSize: Math.round(56 * scale),
-            subFontSize:   Math.round(32 * scale),
-            dateFontSize:  Math.round(36 * scale),
-            smallFontSize: Math.round(18 * scale),
-            eventFontSize: Math.round(16 * scale),
-            markFontSize:  Math.round(Math.max(11, 14 * scale)),
+            titleFontSize: Math.round(64 * scale),
+            subFontSize:   Math.round(36 * scale),
+            dateFontSize:  Math.round(38 * scale),
+            smallFontSize: Math.round(22 * scale),
+            eventFontSize: Math.round(18 * scale),
+            markFontSize:  Math.round(Math.max(12, 15 * scale)),
         };
     }
 
@@ -189,41 +202,44 @@ class WallpaperEngine {
 
     drawHeader(layout) {
         const today = new Date();
-        const { leftMargin, topMargin, scale, width, rightMargin } = layout;
-        this.ctx.font      = `bold ${layout.titleFontSize}px "Microsoft YaHei", sans-serif`;
+        const { leftMargin, topMargin, scale, width, rightMargin, titleFontSize, subFontSize } = layout;
+        // 年月
+        this.ctx.font      = `bold ${titleFontSize}px "Microsoft YaHei", sans-serif`;
         this.ctx.fillStyle = '#ffffff';
         const title = `${today.getFullYear()}年${String(today.getMonth() + 1).padStart(2, '0')}月`;
-        this.ctx.fillText(title, leftMargin, topMargin + layout.titleFontSize);
+        this.ctx.fillText(title, leftMargin, topMargin + titleFontSize);
+        // 倒计时
         if (this.config.countdown && this.config.countdown.date) {
             const target   = new Date(this.config.countdown.date);
             const daysLeft = Math.ceil((target - today) / 86400000);
             const txt = daysLeft > 0
                 ? `距${this.config.countdown.name || '目标'} ${daysLeft} 天`
-                : (daysLeft === 0 ? `${this.config.countdown.name || '目标'}就是今天！` : '目标已过');
-            this.ctx.font      = `${layout.subFontSize}px "Microsoft YaHei", sans-serif`;
-            this.ctx.fillStyle = '#60a5fa';
-            this.ctx.fillText(txt, leftMargin, topMargin + layout.titleFontSize + Math.round(50 * scale));
+                : (daysLeft === 0 ? `${this.config.countdown.name || '目标'}就是今天！` : `${this.config.countdown.name || '目标'}已完成`);
+            this.ctx.font      = `${subFontSize}px "Microsoft YaHei", sans-serif`;
+            this.ctx.fillStyle = daysLeft < 0 ? '#4ade80' : '#60a5fa';
+            this.ctx.fillText(txt, leftMargin, topMargin + titleFontSize + Math.round(52 * scale));
         }
+        // 右上：今日
         const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
         const todayStr = `TODAY  ${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} ${weekdays[today.getDay()]}`;
-        const fSize    = Math.round(28 * scale);
+        const fSize    = Math.round(30 * scale);
         this.ctx.font      = `${fSize}px "Microsoft YaHei", sans-serif`;
         this.ctx.fillStyle = '#8888aa';
         const tw = this.ctx.measureText(todayStr).width;
-        this.ctx.fillText(todayStr, width - rightMargin - tw, topMargin + Math.round(40 * scale));
+        this.ctx.fillText(todayStr, width - rightMargin - tw, topMargin + Math.round(44 * scale));
     }
 
     drawCalendar(layout) {
         const { leftMargin, calTop, cellWidth, cellHeight, cols, rows, scale } = layout;
         const today = new Date(); today.setHours(0,0,0,0);
         const wkNames = ['一','二','三','四','五','六','日'];
-        const wkFSize = Math.round(24 * scale);
+        const wkFSize = Math.round(26 * scale);
         this.ctx.font = `${wkFSize}px "Microsoft YaHei", sans-serif`;
         for (let i = 0; i < 7; i++) {
             const x = leftMargin + i * cellWidth + cellWidth / 2;
             this.ctx.fillStyle = i >= 5 ? '#ff9999' : '#666688';
             const tw = this.ctx.measureText(wkNames[i]).width;
-            this.ctx.fillText(wkNames[i], x - tw / 2, calTop);
+            this.ctx.fillText(wkNames[i], x - tw / 2, calTop + Math.round(28 * scale));
         }
         // 月历范围：优先用 config，否则取当月 1 号 ~ 月末
         const refDate  = this.config.calendarStart ? this.parseLocalDate(this.config.calendarStart) : new Date();
@@ -236,7 +252,7 @@ class WallpaperEngine {
         const startWd     = monthFirst.getDay() || 7;  // 1=Mon..7=Sun
         const firstMonday = new Date(monthFirst);
         firstMonday.setDate(firstMonday.getDate() - (startWd - 1));
-        const gridTop = calTop + Math.round(40 * scale);
+        const gridTop = calTop + Math.round(48 * scale);
         this.dateToCell = {};
         let cur = new Date(firstMonday);
         for (let row = 0; row < rows; row++) {
@@ -382,7 +398,7 @@ class WallpaperEngine {
         const startWd     = monthFirst.getDay() || 7;
         const firstMonday = new Date(monthFirst);
         firstMonday.setDate(firstMonday.getDate() - (startWd - 1));
-        const gridTop = calTop + Math.round(40 * scale);
+        const gridTop = calTop + Math.round(48 * scale);
         let cur = new Date(firstMonday);
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
@@ -415,10 +431,10 @@ class WallpaperEngine {
 
     drawLegend(layout) {
         const { leftMargin, calTop, cellHeight, rows, scale, smallFontSize } = layout;
-        const gridTop   = calTop + Math.round(40 * scale);
-        const legendY   = gridTop + rows * cellHeight + Math.round(16 * scale);
-        const dotSize   = Math.round(14 * scale);
-        const itemGap   = Math.round(150 * scale);
+        const gridTop   = calTop + Math.round(48 * scale);
+        const legendY   = gridTop + rows * cellHeight + Math.round(12 * scale);
+        const dotSize   = Math.round(24 * scale);
+        const itemGap   = Math.round(200 * scale);
         const legends = [
             { name: '研究/综述', color: '#60a5fa' },
             { name: '反馈/修改', color: '#fb923c' },
@@ -426,7 +442,7 @@ class WallpaperEngine {
             { name: '开题答辩', color: '#4ade80' },
             { name: '特殊标记', color: '#a855f7' },
         ];
-        this.ctx.font = `${smallFontSize}px "Microsoft YaHei", sans-serif`;
+        this.ctx.font = `${Math.round(28 * scale)}px "Microsoft YaHei", sans-serif`;
         let lx = leftMargin;
         for (const leg of legends) {
             this.ctx.beginPath();
@@ -439,109 +455,157 @@ class WallpaperEngine {
         }
     }
 
-    drawTodos(layout) {
-        if (!this.config.todos || !this.config.todos.length) return;
-        const { leftMargin, calTop, cellWidth, cols, scale } = layout;
-        const todoX = leftMargin + cols * cellWidth + Math.round(60 * scale);
-        let   todoY = calTop;
-        this.ctx.font      = `bold ${Math.round(28 * scale)}px "Microsoft YaHei", sans-serif`;
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.fillText('今日待办', todoX, todoY + Math.round(28 * scale));
-        todoY += Math.round(45 * scale);
-        const cbSize  = Math.round(20 * scale);
-        const itemGap = Math.round(38 * scale);
-        const txtSize = Math.round(22 * scale);
-        this.ctx.font = `${txtSize}px "Microsoft YaHei", sans-serif`;
-        for (const todo of this.config.todos) {
+    drawBottomPanels(layout) {
+        const { leftStart, width, sideMargin, bottomY, bottomH, scale } = layout;
+        const totalW  = width - leftStart - sideMargin;
+        const panelW  = Math.round((totalW - Math.round(40 * scale) * 2) / 3);
+        const pad     = Math.round(28 * scale);
+        const radius  = Math.round(18 * scale);
+        const lineH   = Math.round(56 * scale);
+        const titleSz = Math.round(38 * scale);
+        const itemSz  = Math.round(32 * scale);
+        const gap     = Math.round(40 * scale);
+
+        const panels = [
+            { x: leftStart,                       label: '今日待办',  color: '#60a5fa' },
+            { x: leftStart + panelW + gap,         label: 'AssetDesk', color: '#a78bfa' },
+            { x: leftStart + (panelW + gap) * 2,   label: '备忘录',    color: '#fb923c' },
+        ];
+
+        for (const p of panels) {
+            // 面板背景
+            this.ctx.save();
             this.ctx.beginPath();
-            this.roundRect(todoX, todoY, cbSize, cbSize, Math.round(4 * scale));
+            this.roundRect(p.x, bottomY, panelW, bottomH, radius);
+            this.ctx.fillStyle = 'rgba(10,12,28,0.55)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = p.color + '44';
+            this.ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            // 标题
+            this.ctx.font      = `bold ${titleSz}px "Microsoft YaHei", sans-serif`;
+            this.ctx.fillStyle = p.color;
+            this.ctx.fillText(p.label, p.x + pad, bottomY + pad + titleSz);
+        }
+
+        // === 今日待办 ===
+        const todoPanelX = panels[0].x;
+        const todos = Array.isArray(this.config.todos) ? this.config.todos : [];
+        let ty = bottomY + pad + titleSz + Math.round(16 * scale);
+        const cbSize = Math.round(18 * scale);
+        this.ctx.font = `${itemSz}px "Microsoft YaHei", sans-serif`;
+        if (todos.length === 0) {
+            this.ctx.fillStyle = '#444455';
+            this.ctx.fillText('暂无待办', todoPanelX + pad, ty + itemSz);
+        }
+        for (const todo of todos.slice(0, 8)) {
+            if (ty + lineH > bottomY + bottomH - pad) break;
+            this.ctx.beginPath();
+            this.roundRect(todoPanelX + pad, ty + Math.round(4 * scale), cbSize, cbSize, Math.round(4 * scale));
             if (todo.done) {
-                this.ctx.fillStyle = '#4ade80';
-                this.ctx.fill();
+                this.ctx.fillStyle = '#4ade80'; this.ctx.fill();
                 this.ctx.fillStyle = '#ffffff';
-                this.ctx.font      = `bold ${Math.round(16 * scale)}px "Microsoft YaHei", sans-serif`;
-                this.ctx.fillText('✓', todoX + Math.round(4 * scale), todoY + Math.round(cbSize * 0.75));
-                this.ctx.font      = `${txtSize}px "Microsoft YaHei", sans-serif`;
-                this.ctx.fillStyle = '#555566';
+                this.ctx.font = `bold ${Math.round(14 * scale)}px "Microsoft YaHei", sans-serif`;
+                this.ctx.fillText('✓', todoPanelX + pad + Math.round(3 * scale), ty + Math.round(cbSize * 0.85));
+                this.ctx.font = `${itemSz}px "Microsoft YaHei", sans-serif`;
+                this.ctx.fillStyle = '#444455';
             } else {
-                this.ctx.strokeStyle = '#555566';
-                this.ctx.lineWidth   = Math.round(2 * scale);
-                this.ctx.stroke();
-                this.ctx.fillStyle   = '#ccccdd';
+                this.ctx.strokeStyle = '#555566'; this.ctx.lineWidth = Math.round(1.5 * scale); this.ctx.stroke();
+                this.ctx.fillStyle = '#ccccdd';
             }
-            const displayText = todo.text.length > 22 ? todo.text.slice(0, 21) + '…' : todo.text;
-            this.ctx.fillText(displayText, todoX + cbSize + Math.round(10 * scale), todoY + Math.round(cbSize * 0.78));
-            todoY += itemGap;
+            const maxW  = panelW - pad * 2 - cbSize - Math.round(10 * scale);
+            const label = this.truncateText(todo.text, maxW);
+            this.ctx.fillText(label, todoPanelX + pad + cbSize + Math.round(10 * scale), ty + itemSz);
+            ty += lineH;
         }
-    }
 
-
-    drawAssetDeskPanel(layout) {
+        // === AssetDesk ===
+        const adPanelX = panels[1].x;
         const snapshot = this.config.assetDeskSnapshot;
-        if (!snapshot) return;
+        let ay = bottomY + pad + titleSz + Math.round(16 * scale);
+        if (!snapshot) {
+            this.ctx.font = `${itemSz}px "Microsoft YaHei", sans-serif`;
+            this.ctx.fillStyle = '#444455';
+            this.ctx.fillText('未连接 AssetDesk', adPanelX + pad, ay + itemSz);
+        } else {
+            const summary  = snapshot.weekSummary  || {};
+            const status   = snapshot.assetStatus  || {};
+            const projects = Array.isArray(status.projects) ? status.projects : [];
 
-        const { leftMargin, calTop, cellWidth, cols, scale } = layout;
-        const panelX = leftMargin + cols * cellWidth + Math.round(60 * scale);
-        const panelW = Math.round(620 * scale);
-        let panelY = calTop + Math.round(360 * scale);
-        const pad = Math.round(22 * scale);
-        const line = Math.round(30 * scale);
-        const radius = Math.round(22 * scale);
+            // 总数大字
+            this.ctx.font      = `bold ${Math.round(66 * scale)}px "Microsoft YaHei", sans-serif`;
+            this.ctx.fillStyle = '#a78bfa';
+            this.ctx.fillText(`${summary.pending_total ?? 0}`, adPanelX + pad, ay + Math.round(66 * scale));
+            this.ctx.font      = `${Math.round(28 * scale)}px "Microsoft YaHei", sans-serif`;
+            this.ctx.fillStyle = '#9090b0';
+            this.ctx.fillText(`待推进  ·  进行中 ${summary.partial ?? 0}  待处理 ${summary.todo ?? 0}`,
+                adPanelX + pad, ay + Math.round(100 * scale));
+            ay += Math.round(116 * scale);
 
-        const summary = snapshot.weekSummary || {};
-        const status = snapshot.assetStatus || {};
-        const projects = Array.isArray(status.projects) ? status.projects.slice(0, 4) : [];
-        const warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings.slice(0, 2) : [];
+            // 进度条 + 项目列表
+            this.ctx.font = `${itemSz}px "Microsoft YaHei", sans-serif`;
+            for (const proj of projects.slice(0, 6)) {
+                if (ay + lineH > bottomY + bottomH - pad) break;
+                const name = this.truncateText(proj.name || 'AssetDesk', Math.round(panelW * 0.45));
+                this.ctx.fillStyle = '#d8dcff';
+                this.ctx.fillText(name, adPanelX + pad, ay + itemSz);
 
-        const panelH = Math.round((170 + projects.length * 34 + warnings.length * 30) * scale);
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.roundRect(panelX, panelY, panelW, panelH, radius);
-        this.ctx.fillStyle = 'rgba(10, 12, 24, 0.56)';
-        this.ctx.fill();
-        this.ctx.strokeStyle = 'rgba(96, 165, 250, 0.28)';
-        this.ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
-        this.ctx.stroke();
+                // 进度条
+                const barX = adPanelX + pad + Math.round(panelW * 0.48);
+                const barW = Math.round(panelW * 0.36);
+                const barH = Math.round(8 * scale);
+                const barY = ay + Math.round(itemSz * 0.4);
+                const pct  = proj.total > 0 ? (proj.done || 0) / proj.total : 0;
+                this.ctx.beginPath(); this.roundRect(barX, barY, barW, barH, Math.round(3 * scale));
+                this.ctx.fillStyle = 'rgba(60,60,90,0.6)'; this.ctx.fill();
+                if (pct > 0) {
+                    this.ctx.beginPath(); this.roundRect(barX, barY, Math.round(barW * pct), barH, Math.round(3 * scale));
+                    this.ctx.fillStyle = pct >= 0.8 ? '#4ade80' : pct >= 0.4 ? '#fb923c' : '#f87171';
+                    this.ctx.fill();
+                }
+                // 数量
+                this.ctx.fillStyle = '#7dd3fc';
+                this.ctx.font = `${Math.round(18 * scale)}px "Microsoft YaHei", sans-serif`;
+                this.ctx.fillText(`${proj.todo ?? proj.total ?? 0}`, adPanelX + panelW - pad - Math.round(40 * scale), ay + itemSz);
+                this.ctx.font = `${itemSz}px "Microsoft YaHei", sans-serif`;
+                ay += lineH;
+            }
 
-        let y = panelY + pad;
-        this.ctx.font = `bold ${Math.round(24 * scale)}px "Microsoft YaHei", sans-serif`;
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.fillText('AssetDesk 状态', panelX + pad, y + Math.round(24 * scale));
-
-        y += Math.round(48 * scale);
-        this.ctx.font = `bold ${Math.round(34 * scale)}px "Microsoft YaHei", sans-serif`;
-        this.ctx.fillStyle = '#60a5fa';
-        this.ctx.fillText(`${summary.pending_total ?? 0}`, panelX + pad, y + Math.round(34 * scale));
-        this.ctx.font = `${Math.round(18 * scale)}px "Microsoft YaHei", sans-serif`;
-        this.ctx.fillStyle = '#aab0d6';
-        this.ctx.fillText(`待推进资产 · ${summary.project_count ?? 0} 个项目`, panelX + pad + Math.round(74 * scale), y + Math.round(30 * scale));
-
-        y += Math.round(58 * scale);
-        this.ctx.font = `${Math.round(18 * scale)}px "Microsoft YaHei", sans-serif`;
-        this.ctx.fillStyle = '#cfd5ff';
-        const todo = summary.todo ?? 0;
-        const partial = summary.partial ?? 0;
-        this.ctx.fillText(`待处理 ${todo}    进行中 ${partial}`, panelX + pad, y);
-
-        y += Math.round(30 * scale);
-        this.ctx.font = `${Math.round(17 * scale)}px "Microsoft YaHei", sans-serif`;
-        for (const project of projects) {
-            const name = this.truncateText(project.name || 'AssetDesk', Math.round(260 * scale));
-            this.ctx.fillStyle = '#d8dcff';
-            this.ctx.fillText(name, panelX + pad, y);
-            this.ctx.fillStyle = '#7dd3fc';
-            this.ctx.fillText(`${project.total || 0}`, panelX + panelW - pad - Math.round(36 * scale), y);
-            y += line;
-        }
-
-        if (warnings.length) {
-            this.ctx.fillStyle = '#fb923c';
-            for (const warning of warnings) {
-                this.ctx.fillText(this.truncateText(`提示：${warning}`, Math.round(500 * scale)), panelX + pad, y);
-                y += line;
+            // 警告
+            const warnings = Array.isArray(snapshot.warnings) ? snapshot.warnings : [];
+            for (const w of warnings.slice(0, 2)) {
+                if (ay + lineH > bottomY + bottomH - pad) break;
+                this.ctx.fillStyle = '#fb923c';
+                this.ctx.font = `${Math.round(18 * scale)}px "Microsoft YaHei", sans-serif`;
+                this.ctx.fillText(this.truncateText(`⚠ ${w}`, panelW - pad * 2), adPanelX + pad, ay + itemSz);
+                ay += lineH;
             }
         }
-        this.ctx.restore();
+
+        // === 备忘录 ===
+        const memoPanelX = panels[2].x;
+        const memos = Array.isArray(this.config.memos) ? this.config.memos : [];
+        let my = bottomY + pad + titleSz + Math.round(16 * scale);
+        this.ctx.font = `${itemSz}px "Microsoft YaHei", sans-serif`;
+        if (memos.length === 0) {
+            this.ctx.fillStyle = '#444455';
+            this.ctx.fillText('暂无备忘', memoPanelX + pad, my + itemSz);
+        }
+        for (const memo of memos.slice(0, 8)) {
+            if (my + lineH > bottomY + bottomH - pad) break;
+            // 小圆点
+            this.ctx.beginPath();
+            this.ctx.arc(memoPanelX + pad + Math.round(6 * scale), my + Math.round(itemSz * 0.55), Math.round(5 * scale), 0, Math.PI * 2);
+            this.ctx.fillStyle = memo.done ? '#444455' : '#fb923c';
+            this.ctx.fill();
+            this.ctx.fillStyle = memo.done ? '#444455' : '#e8d5c0';
+            const maxW  = panelW - pad * 2 - Math.round(20 * scale);
+            const label = this.truncateText(memo.text, maxW);
+            this.ctx.fillText(label, memoPanelX + pad + Math.round(20 * scale), my + itemSz);
+            my += lineH;
+        }
     }
 
     truncateText(text, maxWidth) {
