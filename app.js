@@ -81,6 +81,26 @@ class WallpaperApp {
 
         // 启动时静默尝试从 AssetDesk 同步待办
         this.importFromAssetDesk(true);
+
+        // 启动时检测本地壁纸服务是否在线
+        this.checkWallpaperServer();
+    }
+
+    /**
+     * 检测本地壁纸服务是否在线
+     */
+    async checkWallpaperServer() {
+        const serverUrl = this.config.wallpaperServerUrl || 'http://127.0.0.1:18766';
+        try {
+            const res = await fetch(`${serverUrl}/health`, { method: 'GET' });
+            if (res.ok) {
+                this.updateAutoUpdateStatus(true);
+            } else {
+                this.updateAutoUpdateStatus(false);
+            }
+        } catch (e) {
+            this.updateAutoUpdateStatus(false);
+        }
     }
 
     /**
@@ -483,19 +503,11 @@ class WallpaperApp {
         // 生成全分辨率壁纸
         this.engine.generate(screen.width, screen.height);
         
-        // 导出为blob并下载到固定位置
-        const blob = await this.engine.toBlob();
-        
-        // 创建下载链接，下载到用户的下载目录
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'wallpaper.png';
-        a.click();
-        URL.revokeObjectURL(url);
+        // 通过本地服务设置桌面壁纸
+        const result = await this.setWallpaperViaServer();
         
         // 提示用户
-        this.showNotification('壁纸已生成', '请在下载目录找到 wallpaper.png 并设为桌面背景');
+        this.showNotification('壁纸已设置', '桌面壁纸已更新');
         
         // 更新预览
         this.generatePreview();
@@ -998,7 +1010,56 @@ class WallpaperApp {
         if (lastDate !== today) {
             console.log('日期已变化，自动更新壁纸');
             this.generatePreview();
+            // 真正把新壁纸设置到桌面
+            this.setWallpaperViaServer();
             this.showNotification('壁纸已自动更新', '新的一天，壁纸已重新生成');
+        }
+    }
+
+    /**
+     * 通过本地服务把当前壁纸设置到桌面
+     * 依赖 wallpaper_server.py 在本地运行（默认端口 18766）
+     */
+    async setWallpaperViaServer() {
+        const screenIndex = parseInt(this.previewScreen.value) || 0;
+        const screen = this.config.screens[screenIndex];
+        const serverUrl = this.config.wallpaperServerUrl || 'http://127.0.0.1:18766';
+
+        try {
+            // 生成全分辨率壁纸
+            this.engine.generate(screen.width, screen.height);
+            const blob = await this.engine.toBlob('image/png', 0.95);
+
+            const res = await fetch(`${serverUrl}/set`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'image/png' },
+                body: blob,
+            });
+            const data = await res.json();
+            if (data.ok) {
+                console.log('[WallCraft] 桌面壁纸已更新:', data.message);
+                this.updateAutoUpdateStatus(true);
+            } else {
+                console.warn('[WallCraft] 设置壁纸失败:', data.message);
+                this.updateAutoUpdateStatus(false);
+            }
+        } catch (e) {
+            console.warn('[WallCraft] 无法连接本地壁纸服务，请确认 wallpaper_server.py 已启动:', e);
+            this.updateAutoUpdateStatus(false);
+        }
+    }
+
+    /**
+     * 更新自动更新状态指示
+     */
+    updateAutoUpdateStatus(ok) {
+        if (!this.autoUpdateStatus) return;
+        if (ok) {
+            this.autoUpdateStatus.textContent = '🟢 自动更新';
+            this.autoUpdateStatus.style.color = '';
+        } else {
+            this.autoUpdateStatus.textContent = '🟡 本地服务未连接';
+            this.autoUpdateStatus.style.color = '#fb923c';
         }
     }
 

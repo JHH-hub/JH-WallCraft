@@ -61,6 +61,23 @@ npx serve
 
 将 `index.html` 的完整路径设为浏览器启动页，每次开机自动打开并更新壁纸。
 
+## 🖥️ 桌面壁纸自动更新
+
+浏览器页面常驻时，跨天会自动重新生成壁纸并**真正设置到桌面**。这依赖一个本地服务：
+
+```bash
+# 启动本地壁纸设置服务（调用 Windows API 设置桌面壁纸）
+python wallpaper_server.py
+```
+
+服务默认监听 `http://127.0.0.1:18766`，提供两个接口：
+- `GET /health` — 健康检查
+- `POST /set` — 接收 PNG 并设为桌面壁纸
+
+**开机自启**：已注册 Windows 任务计划程序 `JH-WallCraft-WallpaperServer`，登录时自动启动服务。
+
+> 若浏览器顶部状态显示「🟡 本地服务未连接」，说明服务未运行，请手动启动 `wallpaper_server.py`。
+
 ## 📁 项目结构
 
 ```
@@ -69,6 +86,9 @@ JH-WallCraft/
 ├── style.css           # 样式
 ├── wallpaper-engine.js # 壁纸渲染引擎
 ├── app.js              # 应用逻辑
+├── wallpaper_server.py # 本地壁纸设置服务（调用 Windows API 设桌面壁纸）
+├── gen_wallpaper.js    # Node.js 命令行版壁纸生成
+├── make_wp.py          # Python/PIL 命令行版壁纸生成
 └── README.md           # 说明文档
 ```
 

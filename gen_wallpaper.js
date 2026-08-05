@@ -1,47 +1,181 @@
 const { createCanvas } = require('canvas');
 const fs = require('fs');
 
-function getDefaultConfig() {
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(1);
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + 2);
-    endDate.setDate(0);
-    const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// ─────────────────────────────────────────────
+// 日期工具（全部使用本地时间，避免 UTC 偏移导致"今天"高亮错误）
+// ─────────────────────────────────────────────
+const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const today = new Date();
+today.setHours(0, 0, 0, 0); // 本地今天零点
+
+// 从字符串构造本地日期（避免 new Date("YYYY-MM-DD") 被解析为 UTC）
+function localDate(str) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+// 计算两个本地日期相差天数
+function diffDays(a, b) {
+    return Math.round((b - a) / 86400000);
+}
+
+// ─────────────────────────────────────────────
+// 配置（8月内容，可自由编辑）
+// ─────────────────────────────────────────────
+function getConfig() {
+    const t = new Date();
+    const startDate = new Date(t.getFullYear(), t.getMonth(), 1); // 本月1号
+    const endDate = new Date(t.getFullYear(), t.getMonth() + 2, 0); // 下下月0号=下月最后一天
     return {
         calendarStart: fmt(startDate),
         calendarEnd: fmt(endDate),
-        countdown: { name: '答辩', date: '2026-06-24' },
+        countdown: { name: '论文初稿', date: '2026-09-30' },
         glowIntensity: 100,
         glowCount: 3,
         glowPreset: 'blue-purple',
         bgImageEnabled: false,
         events: [
-            { name: '研究/综述', start: '2026-06-01', end: '2026-06-10', color: '#60a5fa' },
-            { name: '反馈/修改', start: '2026-06-11', end: '2026-06-16', color: '#fb923c' },
-            { name: '准备材料', start: '2026-06-17', end: '2026-06-23', color: '#f87171' }
+            { name: '论文写作', start: '2026-08-01', end: '2026-08-31', color: '#60a5fa' },
+            { name: 'pxlsan 项目迭代', start: '2026-08-03', end: '2026-08-14', color: '#fb923c' },
+            { name: 'OBTI 测试优化', start: '2026-08-10', end: '2026-08-21', color: '#f87171' },
+            { name: 'ACGTI 角色扩充', start: '2026-08-17', end: '2026-08-28', color: '#a78bfa' },
         ],
         milestones: [
-            { name: '综述完成', date: '2026-06-10', color: '#60a5fa' },
-            { name: '交开题报告表', date: '2026-06-17', color: '#f59e0b' },
-            { name: '答辩', date: '2026-06-24', color: '#f43f5e' }
+            { name: '周报', date: '2026-08-07', color: '#4ade80' },
+            { name: '周报', date: '2026-08-14', color: '#4ade80' },
+            { name: '周报', date: '2026-08-21', color: '#4ade80' },
+            { name: '周报', date: '2026-08-28', color: '#4ade80' },
+            { name: '论文大纲', date: '2026-08-15', color: '#f59e0b' },
         ],
         marks: [
-            { name: '朋友考试', date: '2026-06-12', time: '22:30', icon: '🎓' },
-            { name: '朋友考试', date: '2026-06-15', time: '22:30', icon: '🎓' },
-            { name: '朋友考试', date: '2026-06-20', time: '18:30', icon: '🎓' }
+            { name: '朋友考试', date: '2026-08-08', time: '22:30', icon: '🎓' },
+            { name: '朋友考试', date: '2026-08-15', time: '18:30', icon: '🎓' },
+            { name: '朋友考试', date: '2026-08-22', time: '22:30', icon: '🎓' },
         ],
         todos: [
-            { text: '完成《画皮》第6关动画', done: false },
-            { text: '检查素材评审反馈', done: false },
-            { text: '阅读2篇核心文献', done: false }
-        ]
+            { text: '完成论文第2章初稿', done: false },
+            { text: 'pxlsan 换装系统联调', done: false },
+            { text: 'OBTI 题目再平衡', done: false },
+            { text: '阅读2篇核心文献', done: false },
+            { text: '整理本周实验数据', done: false },
+        ],
+        memos: [
+            { text: '答辩材料归档到 NAS', done: false },
+            { text: '更新 GitHub 仓库 README', done: false },
+        ],
+        // 项目进度（用于环形图）
+        projects: [
+            { name: '论文', pct: 35, color: '#60a5fa' },
+            { name: 'pxlsan', pct: 72, color: '#fb923c' },
+            { name: 'OBTI', pct: 58, color: '#f87171' },
+            { name: 'ACGTI', pct: 44, color: '#a78bfa' },
+        ],
+        // 本周待办完成趋势（周一到周日）
+        weekDone: [3, 5, 4, 6, 2, 0, 0],
+        weekTotal: [5, 6, 5, 7, 5, 0, 0],
     };
 }
 
-const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// ─────────────────────────────────────────────
+// AssetDesk 数据对接（读取真实项目进度与完成趋势）
+// ─────────────────────────────────────────────
+const ASSETDESK_DIR = 'C:/Users/jihuiwang/Documents/GitHub/Vertex-AssetDesk';
 
+function readJsonSafe(p) {
+    try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch (e) { return null; }
+}
+
+// 从 animTracker_v6.json 计算各项目完成度（done slots / total slots）
+function loadAssetProjects() {
+    const d = readJsonSafe(ASSETDESK_DIR + '/data/animTracker_v6.json');
+    if (!d || !Array.isArray(d.projects)) return null;
+    const out = [];
+    for (const p of d.projects) {
+        const levels = p.levels || [];
+        const slots = [];
+        for (const l of levels) for (const s of (l.slots || [])) slots.push(s);
+        if (!slots.length) continue;
+        const done = slots.filter(s => s.state === 'done').length;
+        const pct = Math.round(done / slots.length * 100);
+        out.push({ name: p.name, pct, total: slots.length, done });
+    }
+    return out;
+}
+
+// 从 events.jsonl 统计本周（周一到周日）每日事件活动量（所有事件，含扫描/状态变化）
+function loadWeekDone() {
+    const p = ASSETDESK_DIR + '/events.jsonl';
+    let lines;
+    try { lines = fs.readFileSync(p, 'utf-8').split('\n'); } catch (e) { return null; }
+    const now = new Date();
+    const dow = (now.getDay() + 6) % 7; // 周一=0
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    const done = new Array(7).fill(0);
+    const total = new Array(7).fill(0);
+    for (const line of lines) {
+        if (!line.trim()) continue;
+        let ev;
+        try { ev = JSON.parse(line); } catch (e) { continue; }
+        if (!ev.ts) continue;
+        const d = new Date(ev.ts);
+        const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diff = Math.round((day - monday) / 86400000);
+        if (diff >= 0 && diff < 7) {
+            total[diff]++; // 活动量 = 当天所有事件数
+            if (ev.event === 'slot_state_change' && ev.to_state === 'done') done[diff]++;
+        }
+    }
+    // 若本周活动量为 0（周初无数据），回退到最近7天
+    if (total.every(v => v === 0)) {
+        const done7 = new Array(7).fill(0);
+        const total7 = new Array(7).fill(0);
+        for (const line of lines) {
+            if (!line.trim()) continue;
+            let ev;
+            try { ev = JSON.parse(line); } catch (e) { continue; }
+            if (!ev.ts) continue;
+            const d = new Date(ev.ts);
+            const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            const diff = Math.round((now - day) / 86400000);
+            if (diff >= 0 && diff < 7) {
+                total7[6 - diff]++;
+                if (ev.event === 'slot_state_change' && ev.to_state === 'done') done7[6 - diff]++;
+            }
+        }
+        return { done: done7, total: total7, fallback: true };
+    }
+    return { done, total };
+}
+
+// 合并：优先用 AssetDesk 真实数据，缺失时回退到配置占位
+function mergeAssetData(cfg) {
+    const projects = loadAssetProjects();
+    if (projects && projects.length) {
+        // 取进行中的项目（未100%完成），按完成度升序，最多6个
+        const active = projects.filter(p => p.pct < 100).sort((a, b) => a.pct - b.pct).slice(0, 6);
+        if (active.length) {
+            const palette = ['#60a5fa', '#fb923c', '#f87171', '#a78bfa', '#4ade80', '#fbbf24'];
+            cfg.projects = active.map((p, i) => ({ name: p.name, pct: p.pct, color: palette[i % palette.length] }));
+        }
+    }
+    const week = loadWeekDone();
+    if (week) {
+        // 仅当 AssetDesk 数据充足（至少3天有活动）时才覆盖，否则保留配置占位
+        const activeDays = week.total.filter(v => v > 0).length;
+        if (activeDays >= 3) {
+            cfg.weekDone = week.done;
+            cfg.weekTotal = week.total;
+            cfg.weekSource = 'AssetDesk';
+        } else {
+            cfg.weekSource = 'manual';
+        }
+    }
+    return cfg;
+}
+
+// ─────────────────────────────────────────────
+// 渲染
+// ─────────────────────────────────────────────
 function rr(ctx, x, y, w, h, r) {
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + w - r, y);
@@ -68,7 +202,7 @@ function generate(W, H, cfg) {
     ctx.fillStyle = '#08080f';
     ctx.fillRect(0, 0, W, H);
 
-    // 弥散光（蓝紫色系，固定3个光源，top-right位置）
+    // 弥散光（蓝紫色系）
     const clrs = [[80, 120, 220], [160, 100, 200], [100, 80, 180]];
     const intn = (cfg.glowIntensity || 100) / 100;
     const glowPositions = [
@@ -90,16 +224,17 @@ function generate(W, H, cfg) {
         ctx.fillRect(0, 0, W, H);
     });
 
-    // 标题：年月
     const now = new Date();
+
+    // 标题：年月
     ctx.font = `bold ${tfs}px "Microsoft YaHei", sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.fillText(`${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月`, lm, tm + tfs);
 
     // 倒计时
     if (cfg.countdown) {
-        const td = new Date(cfg.countdown.date);
-        const dl = Math.ceil((td - now) / 86400000);
+        const td = localDate(cfg.countdown.date);
+        const dl = diffDays(today, td);
         ctx.font = `${sfs}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#60a5fa';
         const cdText = dl > 0 ? `距${cfg.countdown.name || '目标'} ${dl} 天` : (dl === 0 ? `${cfg.countdown.name || '目标'}就是今天！` : '目标已过');
@@ -123,23 +258,21 @@ function generate(W, H, cfg) {
     }
 
     // 日历网格
-    const cs = cfg.calendarStart ? new Date(cfg.calendarStart) : new Date();
-    const ce = cfg.calendarEnd ? new Date(cfg.calendarEnd) : new Date(cs.getTime() + 41 * 86400000);
+    const cs = cfg.calendarStart ? localDate(cfg.calendarStart) : new Date();
+    const ce = cfg.calendarEnd ? localDate(cfg.calendarEnd) : new Date(cs.getTime() + 41 * 86400000);
     const sw = cs.getDay() || 7;
     const fm = new Date(cs);
     fm.setDate(fm.getDate() - (sw - 1));
     const gt = ct + 40 * s;
     const d2c = {};
     let cd = new Date(fm);
-    const td0 = new Date();
-    td0.setHours(0, 0, 0, 0);
 
     for (let row = 0; row < 6; row++) {
         for (let col = 0; col < 7; col++) {
             const x = lm + col * cw, y = gt + row * ch;
             d2c[fmt(cd)] = { x, y, col, row };
             const ir = cd >= cs && cd <= ce;
-            const it = cd.getTime() === td0.getTime();
+            const it = cd.getTime() === today.getTime();
             const pd = 4 * s;
             ctx.beginPath();
             rr(ctx, x + pd, y + pd, cw - pd * 2, ch - pd * 2, 10 * s);
@@ -147,7 +280,7 @@ function generate(W, H, cfg) {
                 ctx.fillStyle = 'rgba(30,50,80,0.8)';
                 ctx.fill();
                 ctx.strokeStyle = '#60a5fa';
-                ctx.lineWidth = 2 * s;
+                ctx.lineWidth = 3 * s;
                 ctx.stroke();
             } else if (ir) {
                 ctx.strokeStyle = '#252535';
@@ -168,8 +301,8 @@ function generate(W, H, cfg) {
         ctx.font = `${efs}px "Microsoft YaHei", sans-serif`;
         for (const ev of cfg.events) {
             if (!d2c[ev.start]) continue;
-            let ec = new Date(ev.start);
-            const ee = new Date(ev.end);
+            let ec = localDate(ev.start);
+            const ee = localDate(ev.end);
             const segs = [];
             while (ec <= ee) {
                 const k = fmt(ec);
@@ -242,7 +375,7 @@ function generate(W, H, cfg) {
         for (let col = 0; col < 7; col++) {
             const x = lm + col * cw, y = gt + row * ch;
             const ir = cd2 >= cs && cd2 <= ce;
-            const it = cd2.getTime() === td0.getTime();
+            const it = cd2.getTime() === today.getTime();
             const iw = col >= 5;
             const nc = !ir ? '#252530' : it ? '#60a5fa' : iw ? '#ff9999' : '#fff';
             if (cd2.getDate() === 1 && ir) {
@@ -265,10 +398,11 @@ function generate(W, H, cfg) {
     ctx.font = `${smfs}px "Microsoft YaHei", sans-serif`;
     let lx2 = lm;
     for (const lg of [
-        { name: '研究/综述', color: '#60a5fa' },
-        { name: '反馈/修改', color: '#fb923c' },
-        { name: '准备材料', color: '#f87171' },
-        { name: '开题答辩', color: '#4ade80' }
+        { name: '论文写作', color: '#60a5fa' },
+        { name: 'pxlsan', color: '#fb923c' },
+        { name: 'OBTI', color: '#f87171' },
+        { name: 'ACGTI', color: '#a78bfa' },
+        { name: '节点', color: '#4ade80' }
     ]) {
         ctx.beginPath();
         rr(ctx, lx2, ly, 18 * s, 18 * s, 4 * s);
@@ -276,29 +410,32 @@ function generate(W, H, cfg) {
         ctx.fill();
         ctx.fillStyle = '#666677';
         ctx.fillText(lg.name, lx2 + 24 * s, ly + 14 * s);
-        lx2 += 160 * s;
+        lx2 += 150 * s;
     }
 
-    // 待办列表
+    // 右侧信息面板
+    const px = lm + 7 * cw + 60 * s; // 右侧起始 x
+    const pw = W - rm - px;          // 面板宽度
+
+    // 今日待办
     if (cfg.todos && cfg.todos.length > 0) {
-        const todoX = lm + 7 * cw + 60 * s;
         let todoY = ct;
         ctx.font = `bold ${28 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText('今日待办', todoX, todoY + 28 * s);
+        ctx.fillText('今日待办', px, todoY + 28 * s);
         todoY += 45 * s;
         const cbSize = 20 * s;
         const itemSpacing = 38 * s;
         ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
         for (const todo of cfg.todos) {
             ctx.beginPath();
-            rr(ctx, todoX, todoY, cbSize, cbSize, 4 * s);
+            rr(ctx, px, todoY, cbSize, cbSize, 4 * s);
             if (todo.done) {
                 ctx.fillStyle = '#4ade80';
                 ctx.fill();
                 ctx.fillStyle = '#ffffff';
                 ctx.font = `bold ${16 * s}px "Microsoft YaHei", sans-serif`;
-                ctx.fillText('✓', todoX + 4 * s, todoY + 15 * s);
+                ctx.fillText('✓', px + 4 * s, todoY + 15 * s);
                 ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
                 ctx.fillStyle = '#555566';
             } else {
@@ -307,25 +444,180 @@ function generate(W, H, cfg) {
                 ctx.stroke();
                 ctx.fillStyle = '#ccccdd';
             }
-            const displayText = todo.text.length > 22 ? todo.text.slice(0, 21) + '…' : todo.text;
-            ctx.fillText(displayText, todoX + cbSize + 10 * s, todoY + 16 * s);
+            const displayText = todo.text.length > 18 ? todo.text.slice(0, 17) + '…' : todo.text;
+            ctx.fillText(displayText, px + cbSize + 10 * s, todoY + 16 * s);
             todoY += itemSpacing;
         }
+    }
+
+    // 备忘录
+    if (cfg.memos && cfg.memos.length > 0) {
+        let memoY = ct + 6 * ch + 20 * s;
+        ctx.font = `bold ${28 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('备忘录', px, memoY + 28 * s);
+        memoY += 45 * s;
+        ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
+        for (const memo of cfg.memos) {
+            ctx.fillStyle = '#8888aa';
+            const displayText = memo.text.length > 18 ? memo.text.slice(0, 17) + '…' : memo.text;
+            ctx.fillText('· ' + displayText, px, memoY + 16 * s);
+            memoY += 38 * s;
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // 数据图表区（日历正下方，横跨日历宽度，放大铺满）
+    // ─────────────────────────────────────────────
+    const chartX = lm;
+    const chartW = 7 * cw;
+    let chartY = gt + 6 * ch + 30 * s; // 日历网格正下方
+
+    // 1) 项目进度环形图（放大，图例横向排列）
+    if (cfg.projects && cfg.projects.length > 0) {
+        ctx.font = `bold ${30 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('项目进度', chartX, chartY + 30 * s);
+        chartY += 56 * s;
+
+        const donutR = 92 * s;
+        const donutCX = chartX + donutR + 24 * s;
+        const donutCY = chartY + donutR + 12 * s;
+        const gap = 6 * s; // 环形分段间隙
+
+        // 背景环
+        ctx.beginPath();
+        ctx.arc(donutCX, donutCY, donutR, 0, Math.PI * 2);
+        ctx.strokeStyle = '#1a1a2a';
+        ctx.lineWidth = 22 * s;
+        ctx.stroke();
+
+        // 各项目分段
+        let startAngle = -Math.PI / 2;
+        for (const p of cfg.projects) {
+            const frac = p.pct / 100;
+            const endAngle = startAngle + frac * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(donutCX, donutCY, donutR, startAngle + gap * s / donutR, endAngle - gap * s / donutR);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 22 * s;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            startAngle = endAngle;
+        }
+
+        // 中心百分比
+        const avgPct = Math.round(cfg.projects.reduce((a, p) => a + p.pct, 0) / cfg.projects.length);
+        ctx.font = `bold ${44 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(avgPct + '%', donutCX, donutCY + 16 * s);
+        ctx.font = `${18 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#8888aa';
+        ctx.fillText('总进度', donutCX, donutCY + 44 * s);
+        ctx.textAlign = 'left';
+
+        // 图例（环形图右侧，横向排列，最多6个）
+        const lgStartX = donutCX + donutR + 36 * s;
+        const lgStartY = donutCY - donutR + 8 * s;
+        const lgCols = 2; // 两列
+        const lgRowH = 34 * s;
+        ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
+        cfg.projects.forEach((p, i) => {
+            const col = i % lgCols;
+            const row = Math.floor(i / lgCols);
+            const lx = lgStartX + col * 210 * s;
+            const ly = lgStartY + row * lgRowH;
+            ctx.beginPath();
+            ctx.arc(lx + 9 * s, ly + 9 * s, 7 * s, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.fillStyle = '#ccccdd';
+            // 项目名超过6个字符时截断
+            const shortName = p.name.length > 6 ? p.name.slice(0, 6) + '…' : p.name;
+            ctx.fillText(`${shortName} ${p.pct}%`, lx + 24 * s, ly + 13 * s);
+        });
+        chartY += donutR * 2 + 36 * s;
+    }
+
+    // 2) 本周完成趋势（柱状图，放大）
+    if (cfg.weekDone && cfg.weekDone.length > 0) {
+        ctx.font = `bold ${30 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        const barTitle = cfg.weekSource === 'AssetDesk' ? '本周资产活动' : '本周完成趋势';
+        ctx.fillText(barTitle, chartX, chartY + 30 * s);
+        // 数据来源标注
+        if (cfg.weekSource === 'AssetDesk') {
+            ctx.font = `${16 * s}px "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = '#666688';
+            ctx.textAlign = 'right';
+            ctx.fillText('AssetDesk', chartX + chartW, chartY + 30 * s);
+            ctx.textAlign = 'left';
+        }
+        chartY += 56 * s;
+
+        const barW = 44 * s;
+        const barGap = 26 * s;
+        const chartH = 150 * s;
+        const baseY = chartY + chartH;
+        const maxVal = Math.max(...cfg.weekTotal, 1);
+        const wd = ['一', '二', '三', '四', '五', '六', '日'];
+        // AssetDesk 模式：直接用活动量(total)作为彩色柱子；manual 模式：完成量(done)前景 + 总量背景
+        const isAsset = cfg.weekSource === 'AssetDesk';
+
+        for (let i = 0; i < cfg.weekDone.length; i++) {
+            const bx = chartX + i * (barW + barGap);
+            const val = isAsset ? cfg.weekTotal[i] : cfg.weekDone[i];
+            const totalH = (cfg.weekTotal[i] / maxVal) * chartH;
+            const valH = (val / maxVal) * chartH;
+
+            if (!isAsset) {
+                // 总量背景条（仅 manual 模式）
+                ctx.beginPath();
+                rr(ctx, bx, baseY - totalH, barW, totalH, 5 * s);
+                ctx.fillStyle = '#1a1a2a';
+                ctx.fill();
+            }
+
+            // 彩色柱子（AssetDesk=活动量，manual=完成量）
+            if (valH > 0) {
+                ctx.beginPath();
+                rr(ctx, bx, baseY - valH, barW, valH, 5 * s);
+                ctx.fillStyle = i === now.getDay() - 1 ? '#60a5fa' : '#4ade80';
+                ctx.fill();
+            }
+
+            // 数值标签
+            if (valH > 0) {
+                ctx.font = `bold ${18 * s}px "Microsoft YaHei", sans-serif`;
+                ctx.fillStyle = i === now.getDay() - 1 ? '#60a5fa' : '#4ade80';
+                ctx.textAlign = 'center';
+                ctx.fillText(val, bx + barW / 2, baseY - valH - 8 * s);
+                ctx.textAlign = 'left';
+            }
+
+            // 星期标签
+            ctx.font = `${18 * s}px "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = i === now.getDay() - 1 ? '#60a5fa' : '#666688';
+            ctx.textAlign = 'center';
+            ctx.fillText(wd[i], bx + barW / 2, baseY + 22 * s);
+            ctx.textAlign = 'left';
+        }
+        chartY += chartH + 44 * s;
     }
 
     // 底部时间戳
     ctx.font = `${smfs}px "Microsoft YaHei", sans-serif`;
     ctx.fillStyle = '#252535';
-    const footerNow = new Date();
     ctx.fillText(
-        `Generated: ${footerNow.getFullYear()}-${String(footerNow.getMonth() + 1).padStart(2, '0')}-${String(footerNow.getDate()).padStart(2, '0')} ${String(footerNow.getHours()).padStart(2, '0')}:${String(footerNow.getMinutes()).padStart(2, '0')}`,
+        `Generated: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
         lm, H - 40 * s
     );
 
     return canvas;
 }
 
-const cfg = getDefaultConfig();
+const cfg = mergeAssetData(getConfig());
 const outPath = process.argv[2] || 'wallpaper.png';
 const buf = generate(1536, 960, cfg).toBuffer('image/png');
 fs.writeFileSync(outPath, buf);
