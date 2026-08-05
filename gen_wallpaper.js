@@ -29,23 +29,23 @@ function getConfig() {
     return {
         calendarStart: fmt(startDate),
         calendarEnd: fmt(endDate),
-        countdown: { name: '论文初稿', date: '2026-09-30' },
+        countdown: { name: '留用答辩', date: '2026-08-26' },
         glowIntensity: 100,
         glowCount: 3,
         glowPreset: 'blue-purple',
         bgImageEnabled: false,
         events: [
-            { name: '论文写作', start: '2026-08-01', end: '2026-08-31', color: '#60a5fa' },
+            { name: '🔴 留用答辩·P0', start: '2026-08-20', end: '2026-08-27', color: '#ef4444' },
             { name: '春芽计划·提交', start: '2026-08-01', end: '2026-08-10', color: '#4ade80' },
-            { name: '转正答辩·资料整理', start: '2026-08-20', end: '2026-08-31', color: '#f59e0b' },
+            { name: '论文写作', start: '2026-08-01', end: '2026-08-31', color: '#60a5fa' },
             { name: '毕设中筛·准备', start: '2026-09-01', end: '2026-09-15', color: '#a78bfa' },
         ],
         milestones: [
             { name: '春芽提交', date: '2026-08-10', color: '#4ade80' },
             { name: '周报', date: '2026-08-14', color: '#60a5fa' },
             { name: '周报', date: '2026-08-21', color: '#60a5fa' },
+            { name: '🔴 答辩日', date: '2026-08-26', color: '#ef4444' },
             { name: '周报', date: '2026-08-28', color: '#60a5fa' },
-            { name: '转正答辩', date: '2026-08-29', color: '#f59e0b' },
         ],
         marks: [
             { name: '朋友考试', date: '2026-08-08', time: '22:30', icon: '🎓' },
@@ -53,22 +53,22 @@ function getConfig() {
             { name: '朋友考试', date: '2026-08-22', time: '22:30', icon: '🎓' },
         ],
         todos: [
-            { text: '完成论文第2章初稿', done: false },
+            { text: '🔴 答辩PPT制作', done: false },
+            { text: '🔴 答辩逐字稿撰写', done: false },
             { text: '春芽计划·产品说明定稿', done: false },
             { text: '春芽计划·截图补全', done: false },
-            { text: '转正答辩·材料梳理', done: false },
-            { text: '阅读2篇核心文献', done: false },
+            { text: '完成论文第2章初稿', done: false },
         ],
         memos: [
-            { text: '答辩材料归档到 NAS', done: false },
+            { text: '🔴 留用答辩 8.26-27，本周发邮件', done: false },
             { text: '春芽计划 8.10 截止提交', done: false },
             { text: '毕设中筛预计 9 月中旬', done: false },
         ],
         // 项目进度（用于环形图）
         projects: [
-            { name: '论文', pct: 35, color: '#60a5fa' },
+            { name: '留用答辩', pct: 5, color: '#ef4444' },
             { name: '春芽计划', pct: 70, color: '#4ade80' },
-            { name: '转正答辩', pct: 20, color: '#f59e0b' },
+            { name: '论文', pct: 35, color: '#60a5fa' },
             { name: '毕设中筛', pct: 10, color: '#a78bfa' },
         ],
         // 本周待办完成趋势（周一到周日）
