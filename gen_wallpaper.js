@@ -394,24 +394,34 @@ function generate(W, H, cfg) {
         }
     }
 
-    // 图例
-    const ly = gt + 6 * ch + 20 * s;
+    // 图例（动态从 events + milestones 生成，放在图表区下方）
+    const chartBottom = gt + 6 * ch + 30 * s + 150 * s + 150 * s + 56 * s; // 图表区底部
+    const ly = chartBottom + 30 * s;
     ctx.font = `${smfs}px "Microsoft YaHei", sans-serif`;
+    // 收集所有事件和里程碑的颜色名称
+    const legendItems = [];
+    const seen = new Set();
+    for (const ev of cfg.events) {
+        if (!seen.has(ev.name)) { seen.add(ev.name); legendItems.push({ name: ev.name, color: ev.color }); }
+    }
+    for (const ms of cfg.milestones) {
+        if (!seen.has(ms.name)) { seen.add(ms.name); legendItems.push({ name: ms.name, color: ms.color }); }
+    }
+    // 计算每个图例项宽度，确保不超出日历宽度
+    const legendTotalW = 7 * cw;
+    const itemW = Math.min(150 * s, legendTotalW / Math.max(legendItems.length, 1));
     let lx2 = lm;
-    for (const lg of [
-        { name: '论文写作', color: '#60a5fa' },
-        { name: 'pxlsan', color: '#fb923c' },
-        { name: 'OBTI', color: '#f87171' },
-        { name: 'ACGTI', color: '#a78bfa' },
-        { name: '节点', color: '#4ade80' }
-    ]) {
+    for (const lg of legendItems) {
         ctx.beginPath();
         rr(ctx, lx2, ly, 18 * s, 18 * s, 4 * s);
         ctx.fillStyle = lg.color;
         ctx.fill();
         ctx.fillStyle = '#666677';
-        ctx.fillText(lg.name, lx2 + 24 * s, ly + 14 * s);
-        lx2 += 150 * s;
+        // 截断过长的名称
+        const maxChars = Math.floor((itemW - 30 * s) / (smfs * 0.6));
+        const displayName = lg.name.length > maxChars ? lg.name.slice(0, maxChars - 1) + '…' : lg.name;
+        ctx.fillText(displayName, lx2 + 24 * s, ly + 14 * s);
+        lx2 += itemW;
     }
 
     // 右侧信息面板（今日待办 + 备忘录，垂直堆叠，带卡片背景）
