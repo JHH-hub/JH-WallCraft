@@ -36,16 +36,16 @@ function getConfig() {
         bgImageEnabled: false,
         events: [
             { name: '论文写作', start: '2026-08-01', end: '2026-08-31', color: '#60a5fa' },
-            { name: 'pxlsan 项目迭代', start: '2026-08-03', end: '2026-08-14', color: '#fb923c' },
-            { name: 'OBTI 测试优化', start: '2026-08-10', end: '2026-08-21', color: '#f87171' },
-            { name: 'ACGTI 角色扩充', start: '2026-08-17', end: '2026-08-28', color: '#a78bfa' },
+            { name: '春芽计划·提交', start: '2026-08-01', end: '2026-08-10', color: '#4ade80' },
+            { name: '转正答辩·资料整理', start: '2026-08-20', end: '2026-08-31', color: '#f59e0b' },
+            { name: '毕设中筛·准备', start: '2026-09-01', end: '2026-09-15', color: '#a78bfa' },
         ],
         milestones: [
-            { name: '周报', date: '2026-08-07', color: '#4ade80' },
-            { name: '周报', date: '2026-08-14', color: '#4ade80' },
-            { name: '周报', date: '2026-08-21', color: '#4ade80' },
-            { name: '周报', date: '2026-08-28', color: '#4ade80' },
-            { name: '论文大纲', date: '2026-08-15', color: '#f59e0b' },
+            { name: '春芽提交', date: '2026-08-10', color: '#4ade80' },
+            { name: '周报', date: '2026-08-14', color: '#60a5fa' },
+            { name: '周报', date: '2026-08-21', color: '#60a5fa' },
+            { name: '周报', date: '2026-08-28', color: '#60a5fa' },
+            { name: '转正答辩', date: '2026-08-29', color: '#f59e0b' },
         ],
         marks: [
             { name: '朋友考试', date: '2026-08-08', time: '22:30', icon: '🎓' },
@@ -54,21 +54,22 @@ function getConfig() {
         ],
         todos: [
             { text: '完成论文第2章初稿', done: false },
-            { text: 'pxlsan 换装系统联调', done: false },
-            { text: 'OBTI 题目再平衡', done: false },
+            { text: '春芽计划·产品说明定稿', done: false },
+            { text: '春芽计划·截图补全', done: false },
+            { text: '转正答辩·材料梳理', done: false },
             { text: '阅读2篇核心文献', done: false },
-            { text: '整理本周实验数据', done: false },
         ],
         memos: [
             { text: '答辩材料归档到 NAS', done: false },
-            { text: '更新 GitHub 仓库 README', done: false },
+            { text: '春芽计划 8.10 截止提交', done: false },
+            { text: '毕设中筛预计 9 月中旬', done: false },
         ],
         // 项目进度（用于环形图）
         projects: [
             { name: '论文', pct: 35, color: '#60a5fa' },
-            { name: 'pxlsan', pct: 72, color: '#fb923c' },
-            { name: 'OBTI', pct: 58, color: '#f87171' },
-            { name: 'ACGTI', pct: 44, color: '#a78bfa' },
+            { name: '春芽计划', pct: 70, color: '#4ade80' },
+            { name: '转正答辩', pct: 20, color: '#f59e0b' },
+            { name: '毕设中筛', pct: 10, color: '#a78bfa' },
         ],
         // 本周待办完成趋势（周一到周日）
         weekDone: [3, 5, 4, 6, 2, 0, 0],
@@ -648,6 +649,6 @@ function generate(W, H, cfg) {
 
 const cfg = mergeAssetData(getConfig());
 const outPath = process.argv[2] || 'wallpaper.png';
-const buf = generate(1536, 960, cfg).toBuffer('image/png');
+const buf = generate(3840, 2400, cfg).toBuffer('image/png');
 fs.writeFileSync(outPath, buf);
 console.log('OK');
