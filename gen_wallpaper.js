@@ -413,29 +413,45 @@ function generate(W, H, cfg) {
         lx2 += 150 * s;
     }
 
-    // 右侧信息面板
-    const px = lm + 7 * cw + 60 * s; // 右侧起始 x
+    // 右侧信息面板（今日待办 + 备忘录，垂直堆叠，带卡片背景）
+    const px = lm + 7 * cw + 50 * s; // 右侧起始 x
     const pw = W - rm - px;          // 面板宽度
+    const cardPad = 26 * s;
+    const cardRadius = 16 * s;
 
-    // 今日待办
+    // 今日待办卡片
     if (cfg.todos && cfg.todos.length > 0) {
-        let todoY = ct;
+        const todoCardTop = ct;
+        const todoCardH = 6 * ch * 0.62; // 占日历高度约62%
+        // 卡片背景
+        ctx.save();
+        ctx.beginPath();
+        rr(ctx, px, todoCardTop, pw, todoCardH, cardRadius);
+        ctx.fillStyle = 'rgba(12,14,30,0.55)';
+        ctx.fill();
+        ctx.strokeStyle = '#60a5fa44';
+        ctx.lineWidth = 1.5 * s;
+        ctx.stroke();
+        ctx.restore();
+
+        let todoY = todoCardTop + cardPad;
         ctx.font = `bold ${28 * s}px "Microsoft YaHei", sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('今日待办', px, todoY + 28 * s);
-        todoY += 45 * s;
+        ctx.fillStyle = '#60a5fa';
+        ctx.fillText('今日待办', px + cardPad, todoY + 28 * s);
+        todoY += 50 * s;
         const cbSize = 20 * s;
         const itemSpacing = 38 * s;
         ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
         for (const todo of cfg.todos) {
+            if (todoY + itemSpacing > todoCardTop + todoCardH - cardPad) break;
             ctx.beginPath();
-            rr(ctx, px, todoY, cbSize, cbSize, 4 * s);
+            rr(ctx, px + cardPad, todoY, cbSize, cbSize, 4 * s);
             if (todo.done) {
                 ctx.fillStyle = '#4ade80';
                 ctx.fill();
                 ctx.fillStyle = '#ffffff';
                 ctx.font = `bold ${16 * s}px "Microsoft YaHei", sans-serif`;
-                ctx.fillText('✓', px + 4 * s, todoY + 15 * s);
+                ctx.fillText('✓', px + cardPad + 4 * s, todoY + 15 * s);
                 ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
                 ctx.fillStyle = '#555566';
             } else {
@@ -444,52 +460,68 @@ function generate(W, H, cfg) {
                 ctx.stroke();
                 ctx.fillStyle = '#ccccdd';
             }
-            const displayText = todo.text.length > 18 ? todo.text.slice(0, 17) + '…' : todo.text;
-            ctx.fillText(displayText, px + cbSize + 10 * s, todoY + 16 * s);
+            const displayText = todo.text.length > 16 ? todo.text.slice(0, 15) + '…' : todo.text;
+            ctx.fillText(displayText, px + cardPad + cbSize + 10 * s, todoY + 16 * s);
             todoY += itemSpacing;
         }
     }
 
-    // 备忘录
+    // 备忘录卡片
     if (cfg.memos && cfg.memos.length > 0) {
-        let memoY = ct + 6 * ch + 20 * s;
+        const memoCardTop = ct + 6 * ch * 0.62 + 20 * s;
+        const memoCardH = 6 * ch * 0.38 - 20 * s;
+        // 卡片背景
+        ctx.save();
+        ctx.beginPath();
+        rr(ctx, px, memoCardTop, pw, memoCardH, cardRadius);
+        ctx.fillStyle = 'rgba(12,14,30,0.55)';
+        ctx.fill();
+        ctx.strokeStyle = '#fb923c44';
+        ctx.lineWidth = 1.5 * s;
+        ctx.stroke();
+        ctx.restore();
+
+        let memoY = memoCardTop + cardPad;
         ctx.font = `bold ${28 * s}px "Microsoft YaHei", sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('备忘录', px, memoY + 28 * s);
-        memoY += 45 * s;
+        ctx.fillStyle = '#fb923c';
+        ctx.fillText('备忘录', px + cardPad, memoY + 28 * s);
+        memoY += 50 * s;
         ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
         for (const memo of cfg.memos) {
+            if (memoY + 38 * s > memoCardTop + memoCardH - cardPad) break;
             ctx.fillStyle = '#8888aa';
-            const displayText = memo.text.length > 18 ? memo.text.slice(0, 17) + '…' : memo.text;
-            ctx.fillText('· ' + displayText, px, memoY + 16 * s);
+            const displayText = memo.text.length > 16 ? memo.text.slice(0, 15) + '…' : memo.text;
+            ctx.fillText('· ' + displayText, px + cardPad, memoY + 16 * s);
             memoY += 38 * s;
         }
     }
 
     // ─────────────────────────────────────────────
-    // 数据图表区（日历正下方，横跨日历宽度，放大铺满）
+    // 数据图表区（日历正下方，横跨日历宽度）
+    // 布局：环形图（左）+ 柱状图（右）左右并排，各占一半宽度
     // ─────────────────────────────────────────────
     const chartX = lm;
     const chartW = 7 * cw;
-    let chartY = gt + 6 * ch + 30 * s; // 日历网格正下方
+    const chartY = gt + 6 * ch + 30 * s; // 日历网格正下方
+    const halfW = chartW / 2;
 
-    // 1) 项目进度环形图（放大，图例横向排列）
+    // 1) 项目进度环形图（左半区，图例横向单行）
     if (cfg.projects && cfg.projects.length > 0) {
+        const donutCX = chartX + halfW * 0.28;
+        const donutCY = chartY + 150 * s;
+        const donutR = 78 * s;
+        const gap = 6 * s;
+
+        // 标题
         ctx.font = `bold ${30 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.fillText('项目进度', chartX, chartY + 30 * s);
-        chartY += 56 * s;
-
-        const donutR = 92 * s;
-        const donutCX = chartX + donutR + 24 * s;
-        const donutCY = chartY + donutR + 12 * s;
-        const gap = 6 * s; // 环形分段间隙
 
         // 背景环
         ctx.beginPath();
         ctx.arc(donutCX, donutCY, donutR, 0, Math.PI * 2);
         ctx.strokeStyle = '#1a1a2a';
-        ctx.lineWidth = 22 * s;
+        ctx.lineWidth = 20 * s;
         ctx.stroke();
 
         // 各项目分段
@@ -500,7 +532,7 @@ function generate(W, H, cfg) {
             ctx.beginPath();
             ctx.arc(donutCX, donutCY, donutR, startAngle + gap * s / donutR, endAngle - gap * s / donutR);
             ctx.strokeStyle = p.color;
-            ctx.lineWidth = 22 * s;
+            ctx.lineWidth = 20 * s;
             ctx.lineCap = 'round';
             ctx.stroke();
             startAngle = endAngle;
@@ -508,44 +540,40 @@ function generate(W, H, cfg) {
 
         // 中心百分比
         const avgPct = Math.round(cfg.projects.reduce((a, p) => a + p.pct, 0) / cfg.projects.length);
-        ctx.font = `bold ${44 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.font = `bold ${40 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText(avgPct + '%', donutCX, donutCY + 16 * s);
-        ctx.font = `${18 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillText(avgPct + '%', donutCX, donutCY + 14 * s);
+        ctx.font = `${16 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#8888aa';
-        ctx.fillText('总进度', donutCX, donutCY + 44 * s);
+        ctx.fillText('总进度', donutCX, donutCY + 40 * s);
         ctx.textAlign = 'left';
 
-        // 图例（环形图右侧，横向排列，最多6个）
-        const lgStartX = donutCX + donutR + 36 * s;
-        const lgStartY = donutCY - donutR + 8 * s;
-        const lgCols = 2; // 两列
-        const lgRowH = 34 * s;
-        ctx.font = `${22 * s}px "Microsoft YaHei", sans-serif`;
+        // 图例（环形图右侧，横向单行，最多6个，项目名截断更短）
+        const lgStartX = donutCX + donutR + 28 * s;
+        const lgStartY = donutCY - donutR + 6 * s;
+        const lgRowH = 30 * s;
+        ctx.font = `${20 * s}px "Microsoft YaHei", sans-serif`;
         cfg.projects.forEach((p, i) => {
-            const col = i % lgCols;
-            const row = Math.floor(i / lgCols);
-            const lx = lgStartX + col * 210 * s;
-            const ly = lgStartY + row * lgRowH;
+            const ly = lgStartY + i * lgRowH;
             ctx.beginPath();
-            ctx.arc(lx + 9 * s, ly + 9 * s, 7 * s, 0, Math.PI * 2);
+            ctx.arc(lgStartX + 8 * s, ly + 8 * s, 6 * s, 0, Math.PI * 2);
             ctx.fillStyle = p.color;
             ctx.fill();
             ctx.fillStyle = '#ccccdd';
-            // 项目名超过6个字符时截断
-            const shortName = p.name.length > 6 ? p.name.slice(0, 6) + '…' : p.name;
-            ctx.fillText(`${shortName} ${p.pct}%`, lx + 24 * s, ly + 13 * s);
+            // 项目名超过5个字符时截断
+            const shortName = p.name.length > 5 ? p.name.slice(0, 5) + '…' : p.name;
+            ctx.fillText(`${shortName} ${p.pct}%`, lgStartX + 22 * s, ly + 12 * s);
         });
-        chartY += donutR * 2 + 36 * s;
     }
 
-    // 2) 本周完成趋势（柱状图，放大）
+    // 2) 本周完成趋势（柱状图，右半区）
     if (cfg.weekDone && cfg.weekDone.length > 0) {
+        const barX0 = chartX + halfW;
         ctx.font = `bold ${30 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#ffffff';
         const barTitle = cfg.weekSource === 'AssetDesk' ? '本周资产活动' : '本周完成趋势';
-        ctx.fillText(barTitle, chartX, chartY + 30 * s);
+        ctx.fillText(barTitle, barX0, chartY + 30 * s);
         // 数据来源标注
         if (cfg.weekSource === 'AssetDesk') {
             ctx.font = `${16 * s}px "Microsoft YaHei", sans-serif`;
@@ -554,19 +582,21 @@ function generate(W, H, cfg) {
             ctx.fillText('AssetDesk', chartX + chartW, chartY + 30 * s);
             ctx.textAlign = 'left';
         }
-        chartY += 56 * s;
 
-        const barW = 44 * s;
-        const barGap = 26 * s;
+        const barW = 40 * s;
+        const barGap = 22 * s;
         const chartH = 150 * s;
-        const baseY = chartY + chartH;
+        const baseY = chartY + 56 * s + chartH;
         const maxVal = Math.max(...cfg.weekTotal, 1);
         const wd = ['一', '二', '三', '四', '五', '六', '日'];
         // AssetDesk 模式：直接用活动量(total)作为彩色柱子；manual 模式：完成量(done)前景 + 总量背景
         const isAsset = cfg.weekSource === 'AssetDesk';
+        // 柱状图整体居中于右半区
+        const totalBarW = 7 * barW + 6 * barGap;
+        const barStartX = barX0 + (halfW - totalBarW) / 2;
 
         for (let i = 0; i < cfg.weekDone.length; i++) {
-            const bx = chartX + i * (barW + barGap);
+            const bx = barStartX + i * (barW + barGap);
             const val = isAsset ? cfg.weekTotal[i] : cfg.weekDone[i];
             const totalH = (cfg.weekTotal[i] / maxVal) * chartH;
             const valH = (val / maxVal) * chartH;
@@ -603,7 +633,6 @@ function generate(W, H, cfg) {
             ctx.fillText(wd[i], bx + barW / 2, baseY + 22 * s);
             ctx.textAlign = 'left';
         }
-        chartY += chartH + 44 * s;
     }
 
     // 底部时间戳
