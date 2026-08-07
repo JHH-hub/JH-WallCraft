@@ -151,6 +151,21 @@ function loadWeekDone() {
 // 活跃项目白名单：只显示这些 AssetDesk 项目（其他虽未100%但实际已完结）
 const ACTIVE_PROJECTS = ['副玩法制作', '校园爽文'];
 
+// 获取已完成项目列表（含 slots 和 levels 数量）
+function loadCompletedProjects() {
+    const projects = loadAssetProjects();
+    if (!projects) return [];
+    return projects
+        .filter(p => !ACTIVE_PROJECTS.includes(p.name) && p.total > 0)
+        .sort((a, b) => b.total - a.total)
+        .map(p => ({
+            name: p.name,
+            slots: p.total,
+            levels: p.levels || 0,
+            pct: p.pct
+        }));
+}
+
 // 合并：优先用 AssetDesk 真实数据，缺失时回退到配置占位
 function mergeAssetData(cfg) {
     const projects = loadAssetProjects();
@@ -164,6 +179,8 @@ function mergeAssetData(cfg) {
             cfg.projects = active.map((p, i) => ({ name: p.name, pct: p.pct, color: palette[i % palette.length] }));
         }
     }
+    // 已完成项目列表
+    cfg.completedProjects = loadCompletedProjects();
     const week = loadWeekDone();
     if (week) {
         // 仅当 AssetDesk 数据充足（至少3天有活动）时才覆盖，否则保留配置占位
@@ -658,6 +675,78 @@ function generate(W, H, cfg) {
         `Generated: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
         lm, H - 40 * s
     );
+
+    // ─────────────────────────────────────────────
+    // 已完成项目卡片墙（图表区下方，横跨全宽）
+    // ─────────────────────────────────────────────
+    if (cfg.completedProjects && cfg.completedProjects.length > 0) {
+        const cardSectionY = chartY + 150 * s + 150 * s + 56 * s + 70 * s;
+        const cardColors = [
+            '#3b3b50', '#2d2d40', '#35354a', '#2a2a3d', '#323248',
+            '#28283c', '#303045', '#2c2c42', '#34344c', '#26263a',
+            '#3a3a4e', '#2f2f44', '#33334c', '#29293e', '#313148'
+        ];
+
+        // 标题
+        ctx.font = `bold ${24 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#555566';
+        ctx.fillText('已完成项目', lm, cardSectionY);
+
+        // 统计摘要
+        const totalSlots = cfg.completedProjects.reduce((a, p) => a + p.slots, 0);
+        ctx.font = `${18 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#444455';
+        ctx.fillText(`${cfg.completedProjects.length} 个项目 · ${totalSlots} 个动画/PSD`, lm + 160 * s, cardSectionY);
+
+        // 卡片网格：每行5个，卡片宽度 = 日历宽度 / 5
+        const cardW = (7 * cw - 4 * 14 * s) / 5;
+        const cardH = 72 * s;
+        const cardGap = 14 * s;
+        const cardStartY = cardSectionY + 30 * s;
+        const cols = 5;
+
+        ctx.font = `${20 * s}px "Microsoft YaHei", sans-serif`;
+        for (let i = 0; i < cfg.completedProjects.length; i++) {
+            const p = cfg.completedProjects[i];
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const cx = lm + col * (cardW + cardGap);
+            const cy = cardStartY + row * (cardH + cardGap);
+
+            // 卡片背景
+            ctx.beginPath();
+            rr(ctx, cx, cy, cardW, cardH, 8 * s);
+            ctx.fillStyle = cardColors[i % cardColors.length];
+            ctx.fill();
+
+            // 项目名（截断）
+            const shortName = p.name.length > 6 ? p.name.slice(0, 5) + '…' : p.name;
+            ctx.fillStyle = '#ccccdd';
+            ctx.fillText(shortName, cx + 14 * s, cy + 26 * s);
+
+            // 进度条背景
+            const barY = cy + 38 * s;
+            const barH = 6 * s;
+            ctx.beginPath();
+            rr(ctx, cx + 14 * s, barY, cardW - 28 * s, barH, 3 * s);
+            ctx.fillStyle = '#1a1a2a';
+            ctx.fill();
+
+            // 进度条前景
+            const barFill = (cardW - 28 * s) * (p.pct / 100);
+            if (barFill > 0) {
+                ctx.beginPath();
+                rr(ctx, cx + 14 * s, barY, barFill, barH, 3 * s);
+                ctx.fillStyle = p.pct >= 90 ? '#4ade80' : '#60a5fa';
+                ctx.fill();
+            }
+
+            // 底部信息：slots + levels
+            ctx.font = `${16 * s}px "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = '#666688';
+            ctx.fillText(`${p.slots}动画 · ${p.levels}关卡 · ${p.pct}%`, cx + 14 * s, cy + 62 * s);
+        }
+    }
 
     return canvas;
 }
