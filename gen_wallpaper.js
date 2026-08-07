@@ -152,8 +152,16 @@ function loadWeekDone() {
 function mergeAssetData(cfg) {
     const projects = loadAssetProjects();
     if (projects && projects.length) {
-        // 取进行中的项目（未100%完成），按完成度升序，最多6个
-        const active = projects.filter(p => p.pct < 100).sort((a, b) => a.pct - b.pct).slice(0, 6);
+        // 过滤规则：
+        // 1. 排除已完成（100%）的项目
+        // 2. 排除进度为0且slots很少的废弃项目（如致命逃脱 0/8）
+        // 3. 排除明显已完结的旧项目（done >= total 或 pct >= 95）
+        const active = projects.filter(p => {
+            if (p.pct >= 100) return false;
+            if (p.pct === 0 && p.total <= 10) return false; // 废弃项目
+            if (p.pct >= 95) return false; // 基本完成
+            return true;
+        }).sort((a, b) => a.pct - b.pct).slice(0, 6);
         if (active.length) {
             const palette = ['#60a5fa', '#fb923c', '#f87171', '#a78bfa', '#4ade80', '#fbbf24'];
             cfg.projects = active.map((p, i) => ({ name: p.name, pct: p.pct, color: palette[i % palette.length] }));
