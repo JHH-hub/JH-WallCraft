@@ -29,7 +29,7 @@ function getConfig() {
     return {
         calendarStart: fmt(startDate),
         calendarEnd: fmt(endDate),
-        countdown: { name: '留用答辩', date: '2026-08-26' },
+        countdown: { name: '留用答辩', date: '2026-08-27' },
         glowIntensity: 100,
         glowCount: 3,
         glowPreset: 'blue-purple',
@@ -60,7 +60,7 @@ function getConfig() {
             { text: '完成论文第2章初稿', done: false },
         ],
         memos: [
-            { text: '🔴 留用答辩 8.26-27，本周发邮件', done: false },
+            { text: '🔴 留用答辩 8.27 下午，本周发邮件', done: false },
             { text: '春芽计划 8.10 截止提交', done: false },
             { text: '毕设中筛预计 9 月中旬', done: false },
         ],
