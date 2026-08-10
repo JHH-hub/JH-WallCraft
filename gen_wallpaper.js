@@ -42,10 +42,9 @@ function getConfig() {
         ],
         milestones: [
             { name: '春芽提交', date: '2026-08-10', color: '#4ade80' },
-            { name: '周报', date: '2026-08-14', color: '#60a5fa' },
-            { name: '周报', date: '2026-08-21', color: '#60a5fa' },
-            { name: '🔴 答辩日', date: '2026-08-26', color: '#ef4444' },
-            { name: '周报', date: '2026-08-28', color: '#60a5fa' },
+            { name: '周会', date: '2026-08-13', color: '#60a5fa' },
+            { name: '周会', date: '2026-08-20', color: '#60a5fa' },
+            { name: '🔴 答辩日', date: '2026-08-27', color: '#ef4444' },
         ],
         marks: [
             { name: '朋友考试', date: '2026-08-08', time: '22:30', icon: '🎓' },
@@ -358,10 +357,25 @@ function generate(W, H, cfg) {
     if (cfg.milestones) {
         const bh = 28 * s, tyo = 70 * s;
         ctx.font = `bold ${efs}px "Microsoft YaHei", sans-serif`;
+        // 先收集所有事件覆盖的日期
+        const eventDates = new Set();
+        if (cfg.events) {
+            for (const ev of cfg.events) {
+                let ec = localDate(ev.start);
+                const ee = localDate(ev.end);
+                while (ec <= ee) {
+                    eventDates.add(fmt(ec));
+                    ec.setDate(ec.getDate() + 1);
+                }
+            }
+        }
         for (const ml of cfg.milestones) {
             const cl = d2c[ml.date];
             if (!cl) continue;
-            const tx = cl.x + 10 * s, ty = cl.y + tyo;
+            const tx = cl.x + 10 * s;
+            // 如果该日期有事件条，里程碑标签下移避开
+            const hasEvent = eventDates.has(ml.date);
+            const ty = cl.y + tyo + (hasEvent ? bh + 4 * s : 0);
             const tw = ctx.measureText(ml.name).width + 16 * s;
             ctx.beginPath();
             rr(ctx, tx, ty, tw, bh, 6 * s);
