@@ -50,11 +50,18 @@ class WallpaperApp {
             },
             todos: [],
             events: [
-                { name: '论文正文写作', start: '2026-07-01', end: '2026-09-30', color: '#60a5fa' },
-                { name: '实验调研', start: '2026-10-01', end: '2026-12-31', color: '#fb923c' },
+                { name: '🔴 留用答辩·P0', start: '2026-08-20', end: '2026-08-27', color: '#ef4444' },
+                { name: '春芽计划·提交', start: '2026-08-01', end: '2026-08-10', color: '#4ade80' },
+                { name: '产品展示', start: '2026-08-18', end: '2026-08-18', color: '#fbbf24' },
+                { name: '论文写作', start: '2026-08-01', end: '2026-08-31', color: '#60a5fa' },
+                { name: '毕设中筛·准备', start: '2026-09-01', end: '2026-09-15', color: '#a78bfa' },
             ],
             milestones: [
-                { name: '开题答辩✅', date: '2026-06-24', color: '#4ade80' },
+                { name: '春芽提交', date: '2026-08-10', color: '#4ade80' },
+                { name: '周会', date: '2026-08-13', color: '#60a5fa' },
+                { name: '产品展示', date: '2026-08-18', color: '#fbbf24' },
+                { name: '周会', date: '2026-08-20', color: '#60a5fa' },
+                { name: '🔴 答辩日', date: '2026-08-27', color: '#ef4444' },
             ],
             marks: [],
             autoUpdate: true

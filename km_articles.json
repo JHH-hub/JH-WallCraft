@@ -1,0 +1,41 @@
+{
+  "fetchedAt": "2026-08-13T02:30:53.602Z",
+  "articles": [
+    {
+      "title": "上手vLLM大模型推理-必知必会",
+      "author": "grokergong",
+      "link": "https://km.woa.com/articles/show/667445?jumpfrom=kmmcp",
+      "tags": "LLM | vllm | 推理引擎"
+    },
+    {
+      "title": "TAPD IDE插件实操演示，带你开启沉浸式编码体验｜WeDev研效速递",
+      "author": "v_lyuuzhang",
+      "link": "https://km.woa.com/articles/show/667399?jumpfrom=kmmcp",
+      "tags": "IDE插件 | TAPD | 插件 | AI开发 | WeDev"
+    },
+    {
+      "title": "日均节省2小时？云磁盘 x IMate数据报告自动化推送实践！实现多端共享、权限隔离与历史追溯",
+      "author": "busterliu",
+      "link": "https://km.woa.com/articles/show/667463?jumpfrom=kmmcp",
+      "tags": "云磁盘 | 自动化 | AI"
+    },
+    {
+      "title": "打通Cloud Agent和本地工具调用的最后一公里：Local MCP Tunnel设计与实现",
+      "author": "pennyli",
+      "link": "https://km.woa.com/articles/show/667512?jumpfrom=kmmcp",
+      "tags": "agent | MCP | bash | ima"
+    },
+    {
+      "title": "如何赋予AI电影情感，【拿到一线电影节奖项 】，AI影视IP共创",
+      "author": "hangyhliu",
+      "link": "https://km.woa.com/articles/show/667520?jumpfrom=kmmcp",
+      "tags": "AI | AI视频 | AI漫剧 | AIGC"
+    },
+    {
+      "title": "Harness 的边界：工程里那些暂时很难驾驭的问题",
+      "author": "aichen",
+      "link": "https://km.woa.com/articles/show/667527?jumpfrom=kmmcp",
+      "tags": "agent | AI | Harness"
+    }
+  ]
+}

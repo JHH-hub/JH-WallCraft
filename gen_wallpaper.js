@@ -1,5 +1,6 @@
 const { createCanvas } = require('canvas');
 const fs = require('fs');
+const path = require('path');
 
 // ─────────────────────────────────────────────
 // 日期工具（全部使用本地时间，避免 UTC 偏移导致"今天"高亮错误）
@@ -60,6 +61,7 @@ function getConfig() {
         ],
         memos: [
             { text: '🔴 留用答辩 8.27 下午，本周发邮件', done: false },
+            { text: '产品展示 8/18 下午，10-15min/人', done: false },
             { text: '春芽计划 8.10 截止提交', done: false },
             { text: '毕设中筛预计 9 月中旬', done: false },
         ],
@@ -147,6 +149,61 @@ function loadWeekDone() {
     return { done, total };
 }
 
+// 从 animTracker_v6.json 的 slot note/updatedAt 时间戳统计月度/季度动画完成数量趋势
+function loadAnimTrend() {
+    const d = readJsonSafe(ASSETDESK_DIR + '/data/animTracker_v6.json');
+    if (!d || !Array.isArray(d.projects)) return null;
+    const monthCount = {}; // 'YYYY-MM' -> count
+    const re = /(\d{4})-(\d{2})-(\d{2})/;
+    for (const p of d.projects) {
+        for (const l of (p.levels || [])) {
+            for (const s of (l.slots || [])) {
+                let ts = null;
+                // 优先取 note 里的时间戳（如 "三件套完整｜2026-06-04 14:42:59"）
+                const note = s.note || '';
+                const m = note.match(re);
+                if (m) ts = m[1] + '-' + m[2];
+                // 其次取 scan.updatedAt
+                if (!ts && s.scan && s.scan.updatedAt) {
+                    const m2 = String(s.scan.updatedAt).match(re);
+                    if (m2) ts = m2[1] + '-' + m2[2];
+                }
+                if (ts) monthCount[ts] = (monthCount[ts] || 0) + 1;
+            }
+        }
+    }
+    if (!Object.keys(monthCount).length) return null;
+
+    // 生成最近 N 个月的连续月份序列（含0值月份）
+    const now = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        months.push({ key, label: (d.getMonth() + 1) + '月', count: monthCount[key] || 0 });
+    }
+
+    // 季度聚合（近3个完整季度，含当前季度）
+    const quarters = [];
+    const curQ = Math.floor(now.getMonth() / 3); // 当前季度索引 0-3
+    for (let i = 2; i >= 0; i--) {
+        // 从当前季度往前推 i 个季度
+        const qIndex = curQ - i;
+        const qYear = now.getFullYear() + Math.floor(qIndex / 4);
+        const qMonth = (qIndex % 4 + 4) % 4 * 3; // 季度首月 0/3/6/9
+        const qKey = qYear + '-Q' + (qMonth / 3 + 1);
+        let qCount = 0;
+        for (let m = 0; m < 3; m++) {
+            const dm = new Date(qYear, qMonth + m, 1);
+            const key = dm.getFullYear() + '-' + String(dm.getMonth() + 1).padStart(2, '0');
+            qCount += monthCount[key] || 0;
+        }
+        quarters.push({ key: qKey, label: qKey, count: qCount });
+    }
+
+    return { months, quarters };
+}
+
 // 活跃项目白名单：只显示这些 AssetDesk 项目（其他虽未100%但实际已完结）
 const ACTIVE_PROJECTS = ['副玩法制作', '校园爽文'];
 
@@ -191,6 +248,42 @@ function mergeAssetData(cfg) {
         } else {
             cfg.weekSource = 'manual';
         }
+    }
+    // 月度/季度动画数量趋势
+    const trend = loadAnimTrend();
+    if (trend) {
+        cfg.animTrend = trend;
+    }
+    // KM 每日推荐文章（自动刷新：文件不存在或超过6小时则重新拉取）
+    try {
+        const kmPath = path.join(__dirname, 'km_articles.json');
+        let needRefresh = true;
+        if (fs.existsSync(kmPath)) {
+            const stat = fs.statSync(kmPath);
+            const ageMs = Date.now() - stat.mtimeMs;
+            if (ageMs < 6 * 3600 * 1000) needRefresh = false; // 6小时内不刷新
+        }
+        if (needRefresh) {
+            try {
+                const { execSync } = require('child_process');
+                execSync('node fetch_km_articles.js', {
+                    cwd: __dirname,
+                    timeout: 30000,
+                    stdio: 'ignore',
+                    env: { ...process.env }
+                });
+            } catch (e) {
+                // 刷新失败则用旧数据
+            }
+        }
+        if (fs.existsSync(kmPath)) {
+            const km = JSON.parse(fs.readFileSync(kmPath, 'utf8'));
+            if (km.articles && km.articles.length) {
+                cfg.kmArticles = km.articles;
+            }
+        }
+    } catch (e) {
+        // 忽略 KM 文章加载失败，不影响壁纸生成
     }
     return cfg;
 }
@@ -544,17 +637,67 @@ function generate(W, H, cfg) {
     }
 
     // ─────────────────────────────────────────────
+    // 每日推荐（KM 文章，右侧面板下方）
+    // ─────────────────────────────────────────────
+    if (cfg.kmArticles && cfg.kmArticles.length > 0) {
+        const recTop = ct + 6 * ch + 30 * s; // 日历底部下方
+        const recH = H - recTop - 60 * s;    // 到壁纸底部
+        // 卡片背景
+        ctx.save();
+        ctx.beginPath();
+        rr(ctx, px, recTop, pw, recH, cardRadius);
+        ctx.fillStyle = 'rgba(12,14,30,0.55)';
+        ctx.fill();
+        ctx.strokeStyle = '#a78bfa44';
+        ctx.lineWidth = 1.5 * s;
+        ctx.stroke();
+        ctx.restore();
+
+        let recY = recTop + cardPad;
+        ctx.font = `bold ${28 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#a78bfa';
+        ctx.fillText('📚 每日推荐', px + cardPad, recY + 28 * s);
+        recY += 50 * s;
+
+        // 动态行高：让文章均匀填满卡片剩余空间
+        const availH = recH - cardPad - 50 * s;
+        const n = cfg.kmArticles.length;
+        const rowH = Math.min(availH / n, 96 * s);
+
+        ctx.font = `${20 * s}px "Microsoft YaHei", sans-serif`;
+        for (const art of cfg.kmArticles) {
+            if (recY + rowH > recTop + recH - cardPad) break;
+            // 序号圆点
+            ctx.beginPath();
+            ctx.arc(px + cardPad + 8 * s, recY + 8 * s, 5 * s, 0, Math.PI * 2);
+            ctx.fillStyle = '#a78bfa';
+            ctx.fill();
+            // 标题（截断）
+            const title = art.title.length > 14 ? art.title.slice(0, 13) + '…' : art.title;
+            ctx.fillStyle = '#ccccdd';
+            ctx.fillText(title, px + cardPad + 22 * s, recY + 12 * s);
+            // 作者 + 标签
+            ctx.font = `${16 * s}px "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = '#666688';
+            const meta = art.author ? `@${art.author}` : '';
+            ctx.fillText(meta, px + cardPad + 22 * s, recY + 34 * s);
+            ctx.font = `${20 * s}px "Microsoft YaHei", sans-serif`;
+            recY += rowH;
+        }
+    }
+
+    // ─────────────────────────────────────────────
     // 数据图表区（日历正下方，横跨日历宽度）
-    // 布局：环形图（左）+ 柱状图（右）左右并排，各占一半宽度
+    // 布局：环形图（左）+ 柱状图（中）+ 折线图（右），三列并排
     // ─────────────────────────────────────────────
     const chartX = lm;
     const chartW = 7 * cw;
     const chartY = gt + 6 * ch + 30 * s; // 日历网格正下方
-    const halfW = chartW / 2;
+    const thirdW = chartW / 3;
 
-    // 1) 项目进度环形图（左半区，图例横向单行）
+    // 1) 项目进度环形图（左1/3）
     if (cfg.projects && cfg.projects.length > 0) {
-        const donutCX = chartX + halfW * 0.28;
+        const donutCX = chartX + thirdW * 0.5;
         const donutCY = chartY + 150 * s;
         const donutR = 78 * s;
         const gap = 6 * s;
@@ -614,9 +757,9 @@ function generate(W, H, cfg) {
         });
     }
 
-    // 2) 本周完成趋势（柱状图，右半区）
+    // 2) 本周完成趋势（柱状图，中1/3）
     if (cfg.weekDone && cfg.weekDone.length > 0) {
-        const barX0 = chartX + halfW;
+        const barX0 = chartX + thirdW;
         ctx.font = `bold ${30 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#ffffff';
         const barTitle = cfg.weekSource === 'AssetDesk' ? '本周资产活动' : '本周完成趋势';
@@ -630,17 +773,17 @@ function generate(W, H, cfg) {
             ctx.textAlign = 'left';
         }
 
-        const barW = 40 * s;
-        const barGap = 22 * s;
+        const barW = 32 * s;
+        const barGap = 14 * s;
         const chartH = 150 * s;
         const baseY = chartY + 56 * s + chartH;
         const maxVal = Math.max(...cfg.weekTotal, 1);
         const wd = ['一', '二', '三', '四', '五', '六', '日'];
         // AssetDesk 模式：直接用活动量(total)作为彩色柱子；manual 模式：完成量(done)前景 + 总量背景
         const isAsset = cfg.weekSource === 'AssetDesk';
-        // 柱状图整体居中于右半区
+        // 柱状图整体居中于中1/3
         const totalBarW = 7 * barW + 6 * barGap;
-        const barStartX = barX0 + (halfW - totalBarW) / 2;
+        const barStartX = barX0 + (thirdW - totalBarW) / 2;
 
         for (let i = 0; i < cfg.weekDone.length; i++) {
             const bx = barStartX + i * (barW + barGap);
@@ -682,6 +825,79 @@ function generate(W, H, cfg) {
         }
     }
 
+    // ─────────────────────────────────────────────
+    // 3) 动画数量趋势折线图（右1/3，与环形图/柱状图同一行）
+    // ─────────────────────────────────────────────
+    if (cfg.animTrend && cfg.animTrend.months && cfg.animTrend.months.length > 0) {
+        const trendX0 = chartX + thirdW * 2;
+        const trendY = chartY; // 与环形图/柱状图同一行
+        const trendH = 150 * s + 56 * s; // 和柱状图同样高度
+        const trendW = thirdW - 20 * s;
+
+        // 标题
+        ctx.font = `bold ${30 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('动画趋势', trendX0, chartY + 30 * s);
+
+        // 月度折线图（占右1/3上半部分）
+        const months = cfg.animTrend.months;
+        const maxMonth = Math.max(...months.map(m => m.count), 1);
+        const mChartX = trendX0 + 10 * s;
+        const mChartW = trendW - 20 * s;
+        const mBaseY = trendY + trendH - 10 * s;
+        const mTopY = trendY + 50 * s;
+
+        // 网格线（3条水平参考线）
+        ctx.font = `${12 * s}px "Microsoft YaHei", sans-serif`;
+        ctx.fillStyle = '#444455';
+        for (let g = 0; g <= 3; g++) {
+            const gy = mTopY + (mBaseY - mTopY) * g / 3;
+            ctx.strokeStyle = '#1a1a2a';
+            ctx.lineWidth = 1 * s;
+            ctx.beginPath();
+            ctx.moveTo(mChartX, gy);
+            ctx.lineTo(mChartX + mChartW, gy);
+            ctx.stroke();
+            const gv = Math.round(maxMonth * (3 - g) / 3);
+            ctx.fillText(String(gv), mChartX - 20 * s, gy + 4 * s);
+        }
+
+        // 折线 + 数据点
+        const stepX = (months.length > 1) ? mChartW / (months.length - 1) : mChartW;
+        ctx.strokeStyle = '#a78bfa';
+        ctx.lineWidth = 2.5 * s;
+        ctx.beginPath();
+        months.forEach((m, i) => {
+            const x = mChartX + i * stepX;
+            const y = mBaseY - (m.count / maxMonth) * (mBaseY - mTopY);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // 数据点 + 数值 + 月份标签
+        months.forEach((m, i) => {
+            const x = mChartX + i * stepX;
+            const y = mBaseY - (m.count / maxMonth) * (mBaseY - mTopY);
+            ctx.beginPath();
+            ctx.arc(x, y, 4 * s, 0, Math.PI * 2);
+            ctx.fillStyle = '#a78bfa';
+            ctx.fill();
+            ctx.strokeStyle = '#08080f';
+            ctx.lineWidth = 1.5 * s;
+            ctx.stroke();
+            // 数值标签
+            ctx.font = `bold ${14 * s}px "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = '#ccccdd';
+            ctx.textAlign = 'center';
+            ctx.fillText(String(m.count), x, y - 10 * s);
+            // 月份标签
+            ctx.font = `${12 * s}px "Microsoft YaHei", sans-serif`;
+            ctx.fillStyle = '#666688';
+            ctx.fillText(m.label, x, mBaseY + 16 * s);
+            ctx.textAlign = 'left';
+        });
+    }
+
     // 底部时间戳
     ctx.font = `${smfs}px "Microsoft YaHei", sans-serif`;
     ctx.fillStyle = '#252535';
@@ -694,7 +910,10 @@ function generate(W, H, cfg) {
     // 已完成项目卡片墙（图表区下方，横跨全宽）
     // ─────────────────────────────────────────────
     if (cfg.completedProjects && cfg.completedProjects.length > 0) {
-        const cardSectionY = chartY + 150 * s + 150 * s + 56 * s + 70 * s;
+        // 卡片墙下移：为折线图区让出空间（折线图高 120*s + 20*s 间距）
+        const cardSectionY = chartY + 56 * s + 150 * s + 40 * s; // 三列图表区正下方
+        // 只显示前 20 个项目（4行×5列），避免超出壁纸底部
+        const shownProjects = cfg.completedProjects.slice(0, 20);
         const cardColors = [
             '#3b3b50', '#2d2d40', '#35354a', '#2a2a3d', '#323248',
             '#28283c', '#303045', '#2c2c42', '#34344c', '#26263a',
@@ -706,11 +925,11 @@ function generate(W, H, cfg) {
         ctx.fillStyle = '#555566';
         ctx.fillText('已完成项目', lm, cardSectionY);
 
-        // 统计摘要
-        const totalSlots = cfg.completedProjects.reduce((a, p) => a + p.slots, 0);
+        // 统计摘要（基于显示的项目）
+        const totalSlots = shownProjects.reduce((a, p) => a + p.slots, 0);
         ctx.font = `${18 * s}px "Microsoft YaHei", sans-serif`;
         ctx.fillStyle = '#444455';
-        ctx.fillText(`${cfg.completedProjects.length} 个项目 · ${totalSlots} 个动画/PSD`, lm + 160 * s, cardSectionY);
+        ctx.fillText(`${shownProjects.length} 个项目 · ${totalSlots} 个动画/PSD`, lm + 160 * s, cardSectionY);
 
         // 卡片网格：每行5个，卡片宽度 = 日历宽度 / 5
         const cardW = (7 * cw - 4 * 14 * s) / 5;
@@ -720,8 +939,8 @@ function generate(W, H, cfg) {
         const cols = 5;
 
         ctx.font = `${20 * s}px "Microsoft YaHei", sans-serif`;
-        for (let i = 0; i < cfg.completedProjects.length; i++) {
-            const p = cfg.completedProjects[i];
+        for (let i = 0; i < shownProjects.length; i++) {
+            const p = shownProjects[i];
             const col = i % cols;
             const row = Math.floor(i / cols);
             const cx = lm + col * (cardW + cardGap);
