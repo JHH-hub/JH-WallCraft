@@ -1,41 +1,41 @@
 {
-  "fetchedAt": "2026-08-13T02:30:53.602Z",
+  "fetchedAt": "2026-08-24T03:01:04.106Z",
   "articles": [
     {
-      "title": "上手vLLM大模型推理-必知必会",
-      "author": "grokergong",
-      "link": "https://km.woa.com/articles/show/667445?jumpfrom=kmmcp",
-      "tags": "LLM | vllm | 推理引擎"
+      "title": "IMate 企微能力双升级！ DeepSeek Harness 等 19 种 Agent 支持绑定企微；解锁11项企微AI办公新能力",
+      "author": "lukeygwang",
+      "link": "https://km.woa.com/articles/show/668068?jumpfrom=kmmcp",
+      "tags": "agent | OpenClaw | openclaw内网版 | IMate"
     },
     {
-      "title": "TAPD IDE插件实操演示，带你开启沉浸式编码体验｜WeDev研效速递",
-      "author": "v_lyuuzhang",
-      "link": "https://km.woa.com/articles/show/667399?jumpfrom=kmmcp",
-      "tags": "IDE插件 | TAPD | 插件 | AI开发 | WeDev"
+      "title": "卧底日记①：抢不到的茅台，背后竟是 AI 在动手？",
+      "author": "milahuang",
+      "link": "https://km.woa.com/articles/show/668198?jumpfrom=kmmcp",
+      "tags": "黑产 | 情报 | bot | 爬虫 | AI"
     },
     {
-      "title": "日均节省2小时？云磁盘 x IMate数据报告自动化推送实践！实现多端共享、权限隔离与历史追溯",
-      "author": "busterliu",
-      "link": "https://km.woa.com/articles/show/667463?jumpfrom=kmmcp",
-      "tags": "云磁盘 | 自动化 | AI"
+      "title": "基于 DeepSeek Harness 构建生产可用的 Agent 服务，需要怎样的 Agent Infra？",
+      "author": "feynmanzhou",
+      "link": "https://km.woa.com/articles/show/668145?jumpfrom=kmmcp",
+      "tags": "智能体 | DeepSeek | AgenticEngineering | Agent 落地 | deepseek-harness"
     },
     {
-      "title": "打通Cloud Agent和本地工具调用的最后一公里：Local MCP Tunnel设计与实现",
-      "author": "pennyli",
-      "link": "https://km.woa.com/articles/show/667512?jumpfrom=kmmcp",
-      "tags": "agent | MCP | bash | ima"
+      "title": "没有服务器，没有数据库：一块云磁盘 + WorkBuddy，非技术团队搭起的AI知识库",
+      "author": "andyshuang",
+      "link": "https://km.woa.com/articles/show/668189?jumpfrom=kmmcp",
+      "tags": "云磁盘 | 知识库 | AI"
     },
     {
-      "title": "如何赋予AI电影情感，【拿到一线电影节奖项 】，AI影视IP共创",
-      "author": "hangyhliu",
-      "link": "https://km.woa.com/articles/show/667520?jumpfrom=kmmcp",
-      "tags": "AI | AI视频 | AI漫剧 | AIGC"
+      "title": "Kuikly Inspector：面向 AI 时代的运行时 UI 调试工具",
+      "author": "zhenhuachen",
+      "link": "https://km.woa.com/articles/show/668128?jumpfrom=kmmcp",
+      "tags": "inspector | MCP | AI | Kuikly"
     },
     {
-      "title": "Harness 的边界：工程里那些暂时很难驾驭的问题",
-      "author": "aichen",
-      "link": "https://km.woa.com/articles/show/667527?jumpfrom=kmmcp",
-      "tags": "agent | AI | Harness"
+      "title": "AI Coding 自进化系统：让工程经验沉淀为团队复利资产",
+      "author": "joejoetian",
+      "link": "https://km.woa.com/articles/show/668143?jumpfrom=kmmcp",
+      "tags": "知识沉淀 | 知识库 | agent | 知识工程 | AI Coding"
     }
   ]
 }
