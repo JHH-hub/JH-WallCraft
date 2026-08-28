@@ -1,41 +1,41 @@
 {
-  "fetchedAt": "2026-08-25T02:30:11.590Z",
+  "fetchedAt": "2026-08-28T03:01:14.038Z",
   "articles": [
     {
-      "title": "卧底日记①：抢不到的茅台，背后竟是 AI 在动手？",
-      "author": "milahuang",
-      "link": "https://km.woa.com/articles/show/668198?jumpfrom=kmmcp",
-      "tags": "黑产 | 情报 | bot | 爬虫 | AI"
+      "title": "一个人，用AI做一个workbuddy",
+      "author": "keanezhou",
+      "link": "https://km.woa.com/articles/show/668588?jumpfrom=kmmcp",
+      "tags": "agent | AI"
     },
     {
-      "title": "从「越用越懂你」到可落地的长期记忆：腾讯自选股 AI 助手接入 Hy Memory 的实践",
-      "author": "yvetteyjwei",
-      "link": "https://km.woa.com/articles/show/668248?jumpfrom=kmmcp",
-      "tags": "自选股 | 记忆 | HY-Memory | 盯盘"
+      "title": "Qwen3.8-Flash-Next 技术报告解读：长上下文稀疏 MoE 的联合架构、优化与系统设计",
+      "author": "oaizhang",
+      "link": "https://km.woa.com/articles/show/668539?jumpfrom=kmmcp",
+      "tags": "Qwen3.8-Flash-Next"
     },
     {
-      "title": "没有服务器，没有数据库：一块云磁盘 + WorkBuddy，非技术团队搭起的AI知识库",
-      "author": "andyshuang",
-      "link": "https://km.woa.com/articles/show/668189?jumpfrom=kmmcp",
-      "tags": "云磁盘 | 知识库 | AI"
+      "title": "3 天 → 10 分钟：我用 AI Agent手搓了一条\"数字人流水线\"",
+      "author": "orietawang",
+      "link": "https://km.woa.com/articles/show/668617?jumpfrom=kmmcp",
+      "tags": "提升内容质量 | 创新内容类型 | 创新技术工具(AI等) | 内容实现 | 内容表达"
     },
     {
-      "title": "分享我的「去 AI 味」Skill",
-      "author": "annelywu",
-      "link": "https://km.woa.com/articles/show/668242?jumpfrom=kmmcp",
-      "tags": "去 ai 味儿"
+      "title": "TAPD 「AI 需求撰写助手」上线，让你的需求写得完整且规范",
+      "author": "adelitayang",
+      "link": "https://km.woa.com/articles/show/668566?jumpfrom=kmmcp",
+      "tags": "AI | TAPD | 需求 | 知识库 | 评审驱动优化"
     },
     {
-      "title": "聊下 Agentic Slide Harness 的实践 ｜WorkBuddy x 腾讯文档",
-      "author": "ecznlai",
-      "link": "https://km.woa.com/articles/show/668259?jumpfrom=kmmcp",
-      "tags": "PPT | AI | workbuddy | Harness"
+      "title": "AI时代实习生学习代码的新方式",
+      "author": "nolanban",
+      "link": "https://km.woa.com/articles/show/668485?jumpfrom=kmmcp",
+      "tags": "agent | AI | code-review | QAE"
     },
     {
-      "title": "从“热梗”被登记著作权说起：游戏二创权利边界与保护路径探讨",
-      "author": "sissima",
-      "link": "https://km.woa.com/articles/show/668186?jumpfrom=kmmcp",
-      "tags": "游戏"
+      "title": "一人统筹8个Agent跨项目并行开发：用CodeBuddy打造cc-scope多智能体协作控制面丨AI 个人提效获奖案例（第11期）",
+      "author": "bingjiachen",
+      "link": "https://km.woa.com/articles/show/668549?jumpfrom=kmmcp",
+      "tags": "agent | Coding | 实战案例 | AI提效 | codebuddy"
     }
   ]
 }
