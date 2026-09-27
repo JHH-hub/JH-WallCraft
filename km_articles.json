@@ -1,41 +1,41 @@
 {
-  "fetchedAt": "2026-08-28T03:01:14.038Z",
+  "fetchedAt": "2026-09-27T02:30:34.613Z",
   "articles": [
     {
-      "title": "一个人，用AI做一个workbuddy",
-      "author": "keanezhou",
-      "link": "https://km.woa.com/articles/show/668588?jumpfrom=kmmcp",
-      "tags": "agent | AI"
+      "title": "还原第一案发现场，朱雀实验室发现OpenAI 入侵 HF 潜在原因",
+      "author": "xiangfanwu",
+      "link": "https://km.woa.com/articles/show/671023?jumpfrom=kmmcp",
+      "tags": "安全 | 人工智能 | 失控"
     },
     {
-      "title": "Qwen3.8-Flash-Next 技术报告解读：长上下文稀疏 MoE 的联合架构、优化与系统设计",
-      "author": "oaizhang",
-      "link": "https://km.woa.com/articles/show/668539?jumpfrom=kmmcp",
-      "tags": "Qwen3.8-Flash-Next"
+      "title": "WeVisDoc：面向标准和真实文档的端到端解析新SOTA",
+      "author": "jeffreykliu",
+      "link": "https://km.woa.com/articles/show/671019?jumpfrom=kmmcp",
+      "tags": "VLM | 大模型 | 多模态 | 文档解析"
     },
     {
-      "title": "3 天 → 10 分钟：我用 AI Agent手搓了一条\"数字人流水线\"",
-      "author": "orietawang",
-      "link": "https://km.woa.com/articles/show/668617?jumpfrom=kmmcp",
-      "tags": "提升内容质量 | 创新内容类型 | 创新技术工具(AI等) | 内容实现 | 内容表达"
+      "title": "业务邮箱自动归档：让每一封邮件都成为团队的 RAG 语料丨AI 个人提效获奖案例（第13期）",
+      "author": "guowangyang",
+      "link": "https://km.woa.com/articles/show/670907?jumpfrom=kmmcp",
+      "tags": "agent | 实战案例 | AI提效 | RAG | 知识录入"
     },
     {
-      "title": "TAPD 「AI 需求撰写助手」上线，让你的需求写得完整且规范",
-      "author": "adelitayang",
-      "link": "https://km.woa.com/articles/show/668566?jumpfrom=kmmcp",
-      "tags": "AI | TAPD | 需求 | 知识库 | 评审驱动优化"
+      "title": "23 个补丁，让昇腾 910B 把前沿模型训准",
+      "author": "goodli",
+      "link": "https://km.woa.com/articles/show/671030?jumpfrom=kmmcp",
+      "tags": "大模型 | 910B | Megatron-LM | Qwen"
     },
     {
-      "title": "AI时代实习生学习代码的新方式",
-      "author": "nolanban",
-      "link": "https://km.woa.com/articles/show/668485?jumpfrom=kmmcp",
-      "tags": "agent | AI | code-review | QAE"
+      "title": "会议纪要不再“被遗忘”：一句话归档 iWiki，关键结论成为个人上下文",
+      "author": "joyeejin",
+      "link": "https://km.woa.com/articles/show/670978?jumpfrom=kmmcp",
+      "tags": "会议纪要 | 结论 | AI | 记忆 | iwiki"
     },
     {
-      "title": "一人统筹8个Agent跨项目并行开发：用CodeBuddy打造cc-scope多智能体协作控制面丨AI 个人提效获奖案例（第11期）",
-      "author": "bingjiachen",
-      "link": "https://km.woa.com/articles/show/668549?jumpfrom=kmmcp",
-      "tags": "agent | Coding | 实战案例 | AI提效 | codebuddy"
+      "title": "Venus自研文档解析模型：VenusOCR-2.0正式开源",
+      "author": "arleyli",
+      "link": "https://km.woa.com/articles/show/670903?jumpfrom=kmmcp",
+      "tags": "OCR | 文档解析 | 开源"
     }
   ]
 }
