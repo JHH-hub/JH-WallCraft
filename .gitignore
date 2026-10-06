@@ -4,3 +4,6 @@ dist/
 .DS_Store
 Thumbs.db
 .session_tmps/
+
+# 运行时抓取的 KM 文章缓存（gen_wallpaper.js 缺失时会自动重新拉取）
+km_articles.json
