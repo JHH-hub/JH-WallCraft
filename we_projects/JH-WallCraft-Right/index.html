@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>JH-WallCraft Right · Focus HUD</title>
+  <link rel="stylesheet" href="we_wallcraft.css">
+</head>
+<body>
+  <img id="backdropImg" class="backdrop-img" alt="">
+  <div id="ambientLayer" class="ambient-layer"></div>
+  <div class="top-scrim"></div>
+  <div class="dot-grid"></div>
+
+  <div class="right-stage">
+    <!-- 左侧 1/3 桌面图标收纳框（点击穿透） -->
+    <div class="icon-dock-col" id="iconDockCol">
+      <div class="icon-zone"><div class="icon-zone-label">01 // TOOLS &amp; APPS</div></div>
+      <div class="icon-zone"><div class="icon-zone-label">02 // ACTIVE WORKSPACES</div></div>
+      <div class="icon-zone"><div class="icon-zone-label">03 // INBOX &amp; ASSETS</div></div>
+    </div>
+
+    <!-- 右侧 2/3 实时 HUD -->
+    <div class="hud-col">
+      <header class="hud-header">
+        <div class="clock-block">
+          <div class="clock-main">
+            <span class="date-big num" id="dateText">2026.11.23</span>
+            <span class="time-live num" id="clockText">00:00:00</span>
+          </div>
+          <div class="clock-sub mono" id="subText">MON // W48 // NODE-01 PRIMARY</div>
+        </div>
+
+        <div class="header-right">
+          <div class="mode-pills" id="modePills">
+            <button class="mode-btn active" data-mode="daily">日常</button>
+            <button class="mode-btn" data-mode="sprint">冲刺</button>
+            <button class="mode-btn" data-mode="clean">纯净</button>
+          </div>
+          <span class="pill pill-rose hidden" id="nightOwlPill">NIGHT OWL // 记得休息</span>
+          <span class="pill pill-accent" id="themePill">CYBER CYAN</span>
+          <span class="pill" id="syncPill">LIVE --:--:--</span>
+
+          <div class="glass-card countdown-card" id="countdownCard">
+            <div class="cd-top">
+              <div>
+                <div class="cd-meta mono" id="cdMeta">DEADLINE // --</div>
+                <div class="cd-name" id="cdName">目标倒计时</div>
+              </div>
+              <div class="cd-days-box">
+                <div class="cd-days-num num" id="cdDays">--</div>
+                <div class="cd-days-unit mono" id="cdUnit">DAYS LEFT</div>
+              </div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="cdBar" style="width:0%"></div></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- 中行：今日聚焦 | 论文字数 + 备忘录 -->
+      <div class="hud-row-mid">
+        <section class="glass-card card-pad">
+          <div class="card-head">
+            <div class="card-title" id="focusCardTitle">今日聚焦 // TOP FOCUS</div>
+            <span class="pill pill-accent" id="focusStatPill">0/0 DONE</span>
+          </div>
+          <div class="todo-list" id="todoContainer"></div>
+          <div class="heatmap-wrap hidden" id="cleanHeatmap" style="margin-top:8px;"></div>
+        </section>
+
+        <div class="mid-right-stack">
+          <section class="glass-card card-pad">
+            <div class="card-head">
+              <div class="card-title">硕士论文实时字数 // JH-THESIS</div>
+              <span class="mono" style="font-size:12px;color:#94a3b8;" id="thesisUpd">UPD --</span>
+            </div>
+            <div class="thesis-hero">
+              <div>
+                <span class="thesis-big num" id="thesisTotal">--</span>
+                <span class="thesis-sub" id="thesisSub">/ 40,000 字 (0%)</span>
+              </div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="thesisBar" style="width:0%"></div></div>
+            <div class="chapter-list" id="chapterList"></div>
+          </section>
+
+          <section class="glass-card card-pad">
+            <div class="card-head">
+              <div class="card-title" id="memoTitle">灵感与备忘 // MEMO</div>
+            </div>
+            <div class="memo-list" id="memoList"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- 底行：最新论文雷达 | 本机 4090 实时硬件状态 -->
+      <div class="hud-row-bot">
+        <section class="glass-card card-pad">
+          <div class="card-head">
+            <div class="card-title">最新论文雷达 // PAPER RADAR</div>
+            <span class="pill pill-accent" id="paperStatPill">馆藏 -- 篇</span>
+          </div>
+          <div class="paper-list" id="paperList"></div>
+        </section>
+
+        <section class="glass-card card-pad">
+          <div class="card-head">
+            <div class="card-title">本机工作站状态 // NODE-01 LOCAL</div>
+            <span class="pill pill-green" id="liveRatePill">3S LIVE</span>
+          </div>
+          <div class="hw-list" id="hwList"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="we_core.js"></script>
+  <script src="we_right.js"></script>
+</body>
+</html>

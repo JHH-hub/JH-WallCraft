@@ -1,0 +1,97 @@
+{
+  "version": 2,
+  "mode": "daily",
+  "themePreset": "auto-circadian",
+  "glowIntensity": 100,
+  "iconZones": true,
+  "lateNightNudge": true,
+  "bezelContinuousGlow": true,
+  "m2ShowNas": true,
+  "rollingCalendar": true,
+  "backdrops": {
+    "enabled": true,
+    "brightness": 62,
+    "blur": 2,
+    "vignette": 52,
+    "m1_right": "steam_clouds",
+    "m1_left": "steam_alpine_stars",
+    "m2_main": "steam_milkyway",
+    "m2Brightness": 78,
+    "m2Blur": 0
+  },
+  "calendarStart": "2026-11-23",
+  "calendarEnd": "2027-01-03",
+  "countdown": {
+    "name": "硕士论文定稿",
+    "date": "2026-12-31",
+    "startDate": "2026-11-01"
+  },
+  "thesisTargetWords": 40000,
+  "paths": {
+    "githubRoot": "C:/Users/Administrator/Documents/GitHub",
+    "thesisDir": "C:/Users/Administrator/Documents/GitHub/JH-Thesis/03-论文/正文",
+    "papersDb": "C:/Users/Administrator/Documents/GitHub/JH-Thesis/.reference-db/references.sqlite",
+    "sshTool": "C:/Users/Administrator/.gemini/config/skills/pxlsan-ssh/scripts/remote.py"
+  },
+  "nodes": {
+    "m2": {
+      "enabled": true,
+      "host": "192.168.3.222",
+      "agentPort": 18766,
+      "comfyPort": 8188,
+      "token": "REPLACE_WITH_32_HEX_TOKEN",
+      "applyTarget": "all"
+    },
+    "nas": {
+      "enabled": true,
+      "host": "192.168.3.225",
+      "name": "DXP4800PLUS-JH"
+    }
+  },
+  "screens": {
+    "m1_right": {
+      "label": "一号机 · 右屏 (主屏)",
+      "role": "focus_hud",
+      "width": 2560,
+      "height": 1440
+    },
+    "m1_left": {
+      "label": "一号机 · 左屏 (BenQ SW240)",
+      "role": "calendar_deck",
+      "width": 1920,
+      "height": 1200
+    },
+    "m2_main": {
+      "label": "二号机 · RTX 5080",
+      "role": "compute_deck",
+      "width": 2560,
+      "height": 1600
+    }
+  },
+  "todos": [
+    { "text": "推进第五章实验评估与数据收尾", "done": false, "p0": true },
+    { "text": "整理今日最新入库论文要点并补充引文", "done": false, "p0": true },
+    { "text": "核对二号机 ComfyUI 出图工作流状态", "done": false, "p0": false },
+    { "text": "检查桌面双屏与二号机壁纸联动同步", "done": true, "p0": false }
+  ],
+  "events": [
+    { "name": "第五章精修与实验核对", "start": "2026-11-23", "end": "2026-11-29", "color": "#38bdf8" },
+    { "name": "论文全文统稿与盲审排版", "start": "2026-12-01", "end": "2026-12-15", "color": "#818cf8" },
+    { "name": "格式查重与最终定稿提交", "start": "2026-12-18", "end": "2026-12-31", "color": "#34d399" }
+  ],
+  "milestones": [
+    { "name": "文献库增量核对", "date": "2026-11-26", "color": "#38bdf8" },
+    { "name": "论文初稿全章合稿", "date": "2026-12-05", "color": "#a78bfa" },
+    { "name": "预审提交节点", "date": "2026-12-20", "color": "#f59e0b" },
+    { "name": "硕士论文定稿", "date": "2026-12-31", "color": "#f43f5e" }
+  ],
+  "marks": [
+    { "name": "组会", "date": "2026-11-27", "time": "15:00", "icon": "MEET" },
+    { "name": "周会", "date": "2026-12-04", "time": "15:00", "icon": "MEET" }
+  ],
+  "memos": [
+    { "text": "正文 00-06 持续迭代，保持每晚 git push", "done": false },
+    { "text": "二号机空闲显示冰青光晕，高负载切熔岩橙", "done": false },
+    { "text": "左屏专注日历与热力图，右屏只留今日焦点", "done": false }
+  ]
+}

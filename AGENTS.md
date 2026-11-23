@@ -1,109 +1,72 @@
-# AGENTS.md · JH-WallCraft AI 协作上下文导航
+# AGENTS.md · JH-WallCraft v2 AI 协作上下文导航
 
-本文档为 `JH-WallCraft`（日程与工作流数据看板壁纸生成器）仓库的 AI 协作上下文导航与工程规范。参与本仓库开发的 AI Agent（Claude Code、Antigravity、OpenCode、Cursor、GitHub Copilot 等）在修改代码、调整排版布局或提交 Git 记录前，请先阅读本文件。
-
----
-
-## 1. 项目定位与核心工作流
-
-`JH-WallCraft` 是一套面向个人日程管理、倒计时追踪与 `Vertex-AssetDesk` 美术资产生产进度可视化的**桌面壁纸生成系统**。系统支持两种互补的运行模式：
-
-1. **Web 交互式壁纸工作台 + 本地守护服务自动换壁纸**
-   - 浏览器打开 `index.html`，通过 Canvas 2D 实时渲染壁纸，配置持久化在 `localStorage`。
-   - 启动时通过 `assetdesk-client.js` 只读拉取本机 `Vertex-AssetDesk`（`127.0.0.1:18765`）今日焦点与周统计，支持离线缓存降级与 `.jsonl` 手动导入。
-   - 页面常驻时每分钟检测日期变化，跨天或点击「🖼️ 设为壁纸」时将 PNG 字节 POST 到本地 `wallpaper_server.py`（`127.0.0.1:18766/set`），由 Python 调用 Windows Win32 API `SystemParametersInfoW` 直接更新系统桌面壁纸。
-2. **CLI 命令行全景数据看板生成模式 (`gen_wallpaper.js` + `set_wallpaper.ps1`)**
-   - 使用 Node.js `canvas` 离线渲染 `3840×2400` 4K 壁纸，除日历、时间线事件、里程碑、待办与备忘录外，直接聚合 `Vertex-AssetDesk` 的 `animTracker_v6.json` / `events.jsonl` 与 `fetch_km_articles.js` 抓取的 `km_articles.json`，额外绘制左侧「每日推荐阅读 + 进行中项目」以及底部「项目环形图 + 本周活动柱状图 + 动画趋势折线图 + 已完成项目卡片墙」。
+本文档为 `JH-WallCraft`（双机多屏极客玻璃态日程与数据看板壁纸系统）的 AI 协作上下文导航与工程规范。
 
 ---
 
-## 2. 仓库目录与文件职责索引
+## 1. 系统架构与三屏分工
+
+`JH-WallCraft v3` 采用 **一号机 Wallpaper Engine 超低开销实时网页壁纸 + 二号机事件驱动智能静态同步 + 单一真实配置源 (`wallcraft_config.json`)**：
+
+1. **一号机 · 右屏主屏 (`JH-WallCraft-Right`, WE Monitor 0, `2560×1440`) — 实时交互 Focus HUD**
+   - 底图经 `/api/backdrop-image/m1_right` 叠底，无 `requestAnimationFrame`、无 WebGL、无连续 CSS 动画，全屏/最大化应用时随 Wallpaper Engine 自动暂停全部定时器（零后台开销）。
+   - 支持 **1 秒本地时钟**、**3 秒 `RTX 4090 / 内存 / 磁盘` 实时遥测**（`/api/live-fast` 服务端 2s 共享缓存）、**桌面直接点击勾选待办**（`/api/todo-toggle`）与切换模式（`/api/mode`）。
+2. **一号机 · 左屏副屏 (`JH-WallCraft-Left`, WE Monitor 1, `1920×1200`) — 实时日历与代码热力图**
+   - 滚动 6 周作战日历（跨午夜自动滚动高亮）、交互式 12 周 GitHub 热力图（悬停显示单日提交次数）、`JH-Thesis` SVG 进度环与文献库总览。
+3. **二号机 (`m2_main`, `192.168.3.222`, `2560×1440`) — 极简算力舱（0 显存占用静态方案）**
+   - 二号机未安装 Wallpaper Engine，由一号机 `wallpaper_server.py` 后台守护线程每 20 秒低开销巡检 `5080 + ComfyUI + NAS`，仅在队列/负载状态跃迁或 120 秒心跳时重绘并推送 PNG（计划任务 `JH-WallCraft-AutoSync` 仅作 `--targets m2` 兜底）。
+
+---
+
+## 2. 仓库目录与文件索引
 
 ```text
 JH-WallCraft/
-├── index.html              # Web 端主界面：左侧配置折叠面板 + 右侧 Canvas 预览区 + 事件/节点/标记编辑弹窗
-├── style.css               # Web 端深色主题样式表
-├── wallpaper-engine.js     # ★ 浏览器端 Canvas 2D 渲染引擎 (window.WallpaperEngine)
-├── assetdesk-client.js     # ★ AssetDesk 只读客户端 (window.AssetDeskClient)：/api/wallpaper -> /slots 回退 -> localStorage 快照兜底
-├── app.js                  # ★ Web 端主控制器 (WallpaperApp)：DOM 绑定、localStorage 持久化、跨天自动更新、调用 18766 设壁纸
-│
-├── wallpaper_server.py     # ★ 本地壁纸设置守护服务（默认 127.0.0.1:18766）：GET /health、POST /set 调用 SystemParametersInfoW
-├── set_wallpaper.ps1       # PowerShell 脚本：P/Invoke user32.dll SystemParametersInfo 直接刷新 Windows 桌面壁纸
-│
-├── gen_wallpaper.js        # ★ Node.js (node-canvas) CLI 版 4K 壁纸生成器（含 AssetDesk 图表、已完成项目墙、KM 每日推荐）
-├── fetch_km_articles.js    # 调用 mcporter 拉取 KM 热榜并按 AI/设计关键词过滤生成本地 km_articles.json
-├── _analyze_layout.js      # 壁纸版面像素密度诊断工具（按行/列统计亮度 > 55 的内容像素分布，排查越界与碰撞）
-├── make_wp.py              # Python Pillow 轻量版单月日历壁纸生成脚本
-│
-├── package.json            # Node 依赖定义（devDependencies: canvas@^3.2.3）
-└── README.md               # 使用说明文档
+├── wallcraft_config.py        # 统一配置加载/原子保存与本地日期工具（严格禁止 UTC 偏移解析）
+├── wallcraft_config.example.json # 公开配置模板（真实配置写入已 gitignore 的 wallcraft_config.json）
+├── wallcraft_backdrops.py     # Steam Wallpaper Engine 精选底图目录、ffmpeg 抽帧与模糊暗角缓存
+├── wallcraft_win.py           # Windows IDesktopWallpaper COM 多显示器分屏控制 + A/B ping-pong 防缓存
+├── wallcraft_agent.py         # 二号机纯 stdlib 交互会话代理 (TCP 18766, X-WallCraft-Token 鉴权)
+├── wallcraft_collectors.py    # 并发采集：GitHub热力图 / JH-Thesis字数 / references.sqlite / 4090 / 5080+Comfy / NAS
+├── wallcraft_renderer.py      # Pillow 13 极客深色毛玻璃渲染引擎（透明图层 alpha_composite + CJK 字体守卫）
+├── wallcraft_sync.py          # 主控 CLI 同步工具（支持单独 --targets m2 同步）
+├── deploy_we.py               # Wallpaper Engine 双屏 Web 项目安装与应用工具
+├── we_projects/               # Wallpaper Engine 实时 Web 壁纸源码（Right / Left / shared）
+├── wallpaper_server.py        # 一号机本地实时遥测/控制服务 (127.0.0.1:18766) + 二号机守护线程
+├── index.html / style.css / app.js # 纯原生零构建极客毛玻璃 Web 控制台
+├── gen_wallpaper.js / wallpaper-engine.js # v1 遗留脚本（保留参考）
+└── README.md / AGENTS.md
 ```
 
 ---
 
-## 3. 核心架构与排版机制详解
+## 3. 工程红线与避坑规范
 
-### 3.1 桌面安全区与响应式坐标系统 (`wallpaper-engine.js` & `gen_wallpaper.js`)
-- **基准分辨率与缩放因子**：以 `3840×2400`（16:10 4K）为基准，`scale = width / 3840`，所有字号、边距、圆角、行高均乘以 `scale`。
-- **左侧 1/3 留空约定**：
-  - `wallpaper-engine.js` 中 `leftStart = Math.round(width / 3)`，将**屏幕左侧 1/3 留给桌面快捷方式图标**，主日历与底部三栏面板（`今日待办` | `AssetDesk 进度` | `备忘录`）严格排布在右侧 2/3 区域（右边距 `sideMargin = Math.round(80 * scale)`）。
-  - `gen_wallpaper.js` 在左侧空白区的下半部分（`y >= 540 * s`）排布「每日推荐（KM 文章）」与「进行中项目卡片」，上半部分（`y < 540 * s`）仍保持留空给桌面图标。
-- **日历单元格防碰撞规则**：
-  - 每个日期格内按纵向比例分层排布：左上角日期数字（1 日显示月份标签）、右上角特殊标记紫底胶囊（`mark`）、中段跨天时间线事件空心圆角条（`event`，最多叠放 3 层）、底部关键节点实心色块（`milestone`）。
-  - 当某日既有时间线事件又有关键节点时，里程碑色块需根据当日事件条层数自动下移或避让，防止文字重叠。
-
-### 3.2 本地日期解析红线（防东八区 UTC 偏移 Bug）
-- **严禁直接调用 `new Date("YYYY-MM-DD")`**！在 ECMAScript 规范中，仅含年月日的 ISO 字符串会被按 **UTC 零点**解析，在本地时间比对时会因时区或 `setHours(0,0,0,0)` 产生一天偏差，导致「今天」高亮或跨天事件错位。
-- **必须使用本地日期构造函数**：
-  - `wallpaper-engine.js` 中使用 `this.parseLocalDate(str)`（`const [y, m, d] = str.split('-').map(Number); new Date(y, m - 1, d)`）。
-  - `gen_wallpaper.js` 中使用 `localDate(str)` 与本地零点 `today`。
-
-### 3.3 本地服务端口与外部数据联动
-| 服务 / 数据源 | 默认地址 / 路径 | 职责与容错策略 |
-|---|---|---|
-| `wallpaper_server.py` | `http://127.0.0.1:18766` | 接收浏览器 `POST /set` 的 PNG 二进制流，写入 `~/wallcraft_wallpaper.png` 并设为系统壁纸；未启动时顶部状态栏显示「🟡 本地服务未连接（仅下载）」。 |
-| `Vertex-AssetDesk` | `http://127.0.0.1:18765` | `assetdesk-client.js` 依次尝试 `/api/wallpaper` → `/slots` → `localStorage` 缓存快照，保证 AssetDesk 未启动时壁纸生成不报错。 |
-| `km_articles.json` | 仓库根目录本地缓存（Git 忽略） | 由 `fetch_km_articles.js` 生成；拉取失败或结果为空时保留旧文件，避免壁纸推荐栏变空。 |
+1. **本地日期解析红线**：严禁使用 `new Date("YYYY-MM-DD")` 等隐式 UTC 解析；Python 端统一使用 `wallcraft_config.parse_local_date()` 与 `today_local()`。
+2. **Pillow RGBA 混色与中文字体红线**：
+   - 半透明元素必须经 `LayerCanvas`（独立透明 `(0,0,0,0)` 图层 + `Image.alpha_composite`）合成，禁止对全透明底之外的 RGBA 画布直接画半透明形状后丢弃 Alpha。
+   - 含中文的字符串必须由 `font_for()` 自动切换至 `msyh.ttc` / `msyhbd.ttc`，且过滤非 BMP Emoji，防止豆腐块。
+3. **无窗口 `pythonw.exe` 运行安全**：后台服务与代理不可假设 `sys.stdout` / `sys.stderr` 非 `None`，所有日志写入 `.cache/server.log` 或 `agent.log` 并做空值保护。
+4. **隐私与凭据安全**：`wallcraft_config.json`、`.wallcraft_secret`、`agent_token.txt`、`.cache/`、`output/` 均在 `.gitignore` 中忽略，禁止提交到仓库或硬编码进源码；`references.sqlite` 必须以只读 URI (`?mode=ro`) 打开。
+5. **双机桌面会话机制**：Windows `IDesktopWallpaper` COM 接口必须在交互式桌面会话内调用。一号机使用计划任务 `JH-WallCraft-Server`（登录自启）和 `JH-WallCraft-AutoSync`（每 5 分钟刷新）；二号机通过 `JH-WallCraft-Agent` 交互式计划任务接收局域网 Token 鉴权推送。
 
 ---
 
-## 4. 常用运行与验证命令
+## 4. 常用命令与接口
 
-### 4.1 启动 Web 端与本地壁纸设置服务
 ```powershell
-# 1. 启动本地桌面壁纸设置守护服务（监听 127.0.0.1:18766）
-python wallpaper_server.py
+# 1. 仅本地渲染三屏预览图到 output/（不修改桌面）
+python -X utf8 wallcraft_sync.py --targets all --preview-only --force-collect
 
-# 2. 启动静态服务器预览 Web 界面（或直接双击 index.html）
-python -m http.server 8080
-# 浏览器访问 http://localhost:8080
+# 2. 渲染并立即同步三块屏幕壁纸
+python -X utf8 wallcraft_sync.py --targets all
+
+# 3. 仅刷新数据采集检查
+python -X utf8 wallcraft_collectors.py
+
+# 4. 查看一号机当前显示器与壁纸路径
+python -X utf8 wallcraft_win.py --list
+
+# 5. 启动本地总控服务 & 打开 Web 控制台 (http://127.0.0.1:18766)
+python -X utf8 wallpaper_server.py
 ```
-
-### 4.2 命令行生成 4K 数据看板壁纸并应用到桌面
-```powershell
-# 1. （可选）更新 KM 每日推荐文章缓存
-node fetch_km_articles.js
-
-# 2. 使用 node-canvas 生成 4K 壁纸（可指定输出路径）
-node gen_wallpaper.js C:\Users\Administrator\wallcraft_wallpaper.png
-
-# 3. 诊断生成壁纸的像素密度与版面边界
-node _analyze_layout.js
-
-# 4. 通过 PowerShell 将 PNG 立即设为 Windows 桌面壁纸
-powershell -ExecutionPolicy Bypass -File set_wallpaper.ps1
-```
-
----
-
-## 5. 编码与维护规范
-
-1. **Web 端零构建依赖**：
-   - `index.html`、`app.js`、`wallpaper-engine.js`、`assetdesk-client.js`、`style.css` 保持纯原生浏览器脚本与样式，不引入打包器或前端框架；全局类通过 `window.WallpaperEngine`、`window.AssetDeskClient` 暴露。
-2. **双端渲染逻辑同步**：
-   - 若修改了弥散光预设色系（`blue-purple`、`pink-orange`、`green-cyan`、`gold-warm`）或日历单元格的事件/节点防碰撞逻辑，请同步检查 `wallpaper-engine.js`（浏览器端）与 `gen_wallpaper.js`（Node CLI 端）。
-3. **本地缓存与隐私保护**：
-   - `km_articles.json`、`.session_tmps/` 及临时导出的壁纸文件不纳入版本控制（已在 `.gitignore` 中忽略）。
-   - 修改 `gen_wallpaper.js`、`fetch_km_articles.js`、`set_wallpaper.ps1` 中的本机路径时，优先支持环境变量或命令行参数覆盖，严禁提交任何 API Key、Token 或内网认证凭据。
-4. **Git 提交规范**：
-   - 遵循 Conventional Commits（`feat:`、`fix:`、`docs:`、`chore:`），提交前运行 `git status` 与 `git diff` 核对变更。

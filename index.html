@@ -1,323 +1,285 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日程壁纸生成器</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JH-WallCraft v2 · 双机多屏极客壁纸控制台</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app">
-        <!-- 顶部栏 -->
-        <header class="header">
-            <h1>📅 日程壁纸生成器</h1>
-            <div class="header-actions">
-                <span class="auto-update-status" id="autoUpdateStatus">🟢 自动更新</span>
-                <button class="btn btn-primary" id="setWallpaperBtn">🖼️ 设为壁纸</button>
-                <button class="btn btn-secondary" id="exportBtn">📥 导出</button>
-            </div>
-        </header>
-
-        <div class="main-container">
-            <!-- 左侧配置面板 -->
-            <aside class="sidebar">
-                <!-- 弥散光设置 -->
-                <section class="panel">
-                    <h3>🎨 弥散光</h3>
-                    <div class="form-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="glowEnabled" checked>
-                            <span>启用弥散光效果</span>
-                        </label>
-                    </div>
-                    <div id="gradientSettings">
-                        <div class="form-group">
-                            <label>光源数量</label>
-                            <div class="glow-count-selector" id="glowCount">
-                                <button data-count="1">1个</button>
-                                <button data-count="2">2个</button>
-                                <button data-count="3" class="active">3个</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>色系预设</label>
-                            <select id="glowPreset">
-                                <option value="blue-purple">蓝紫色（默认）</option>
-                                <option value="pink-orange">粉橙色</option>
-                                <option value="green-cyan">青绿色</option>
-                                <option value="gold-warm">金暖色</option>
-                                <option value="custom">自定义颜色</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="customColorGroup" style="display:none">
-                            <label>自定义颜色</label>
-                            <div class="color-row">
-                                <input type="color" id="glowColor1" value="#5078dc">
-                                <input type="color" id="glowColor2" value="#a064c8">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>光源位置</label>
-                            <div class="position-grid" id="glowPosition">
-                                <button data-pos="top-left">↖</button>
-                                <button data-pos="top-center">↑</button>
-                                <button data-pos="top-right" class="active">↗</button>
-                                <button data-pos="center-left">←</button>
-                                <button data-pos="center">●</button>
-                                <button data-pos="center-right">→</button>
-                                <button data-pos="bottom-left">↙</button>
-                                <button data-pos="bottom-center">↓</button>
-                                <button data-pos="bottom-right">↘</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>光源强度 <span id="glowIntensityVal">100%</span></label>
-                            <input type="range" id="glowIntensity" min="30" max="150" value="100">
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 背景图片设置 -->
-                <section class="panel">
-                    <h3>🖼️ 背景图片</h3>
-                    <div class="form-group">
-                        <label class="toggle-label">
-                            <input type="checkbox" id="bgImageEnabled">
-                            <span>启用背景图片</span>
-                        </label>
-                    </div>
-                    <div id="bgImageSettings" style="display:none">
-                        <div class="form-group">
-                            <label>上传图片</label>
-                            <input type="file" id="bgUpload" accept="image/*">
-                            <div class="preview-box" id="bgPreview"></div>
-                        </div>
-                        <div class="form-group">
-                            <label>亮度 <span id="bgBrightnessVal">100%</span></label>
-                            <input type="range" id="bgBrightness" min="20" max="150" value="100">
-                        </div>
-                        <div class="form-group">
-                            <label>模糊程度 <span id="bgBlurVal">0px</span></label>
-                            <input type="range" id="bgBlur" min="0" max="50" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label>暗角强度 <span id="bgVignetteVal">50%</span></label>
-                            <input type="range" id="bgVignette" min="0" max="100" value="50">
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 屏幕配置 -->
-                <section class="panel">
-                    <h3>🖥️ 屏幕配置</h3>
-                    <div id="screenList"></div>
-                    <button class="btn btn-small" id="addScreenBtn">+ 添加屏幕</button>
-                </section>
-
-                <!-- 日历范围 -->
-                <section class="panel">
-                    <h3>📆 日历范围</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>开始日期</label>
-                            <input type="date" id="calStart">
-                        </div>
-                        <div class="form-group">
-                            <label>结束日期</label>
-                            <input type="date" id="calEnd">
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 倒计时目标 -->
-                <section class="panel">
-                    <h3>🎯 倒计时目标</h3>
-                    <div class="form-group">
-                        <label>目标名称</label>
-                        <input type="text" id="countdownName" placeholder="如：开题答辩">
-                    </div>
-                    <div class="form-group">
-                        <label>目标日期</label>
-                        <input type="date" id="countdownDate">
-                    </div>
-                </section>
-
-                <!-- 今日待办 -->
-                <section class="panel">
-                    <h3>✅ 今日待办</h3>
-                    <div id="todoList"></div>
-                    <div class="add-item-row">
-                        <input type="text" id="newTodoInput" placeholder="添加待办...">
-                        <button class="btn btn-small" id="addTodoBtn">+</button>
-                    </div>
-                    <div class="assetdesk-import" style="margin-top:10px;padding-top:10px;border-top:1px solid #252535;">
-                        <label style="font-size:12px;color:#666688;display:block;margin-bottom:6px;">
-                            从 AssetDesk 同步今日焦点
-                        </label>
-                        <div style="display:flex;gap:6px;align-items:center;">
-                            <input type="file" id="assetdeskFile" accept=".jsonl" style="display:none">
-                            <button class="btn btn-small" id="assetdeskImportBtn" style="flex:1">
-                                同步 AssetDesk
-                            </button>
-                            <button class="btn btn-small" id="assetdeskClearBtn" title="清理已同步的 AssetDesk 项目" style="padding:4px 8px">
-                                清理
-                            </button>
-                        </div>
-                        <div id="assetdeskStatus" style="font-size:11px;color:#666688;margin-top:5px;min-height:16px;"></div>
-                    </div>
-                </section>
-
-                <!-- 时间线事件 -->
-                <section class="panel">
-                    <h3>📊 时间线事件</h3>
-                    <div id="eventList"></div>
-                    <button class="btn btn-small" id="addEventBtn">+ 添加事件</button>
-                </section>
-
-                <!-- 关键节点 -->
-                <section class="panel">
-                    <h3>🏁 关键节点</h3>
-                    <div id="milestoneList"></div>
-                    <button class="btn btn-small" id="addMilestoneBtn">+ 添加节点</button>
-                </section>
-
-                <!-- 特殊标记 -->
-                <section class="panel">
-                    <h3>🎓 特殊标记</h3>
-                    <div id="markList"></div>
-                    <button class="btn btn-small" id="addMarkBtn">+ 添加标记</button>
-                </section>
-
-                <!-- 备忘录 -->
-                <section class="panel">
-                    <h3>📝 备忘录</h3>
-                    <p style="font-size:11px;color:#666688;margin:0 0 8px">跨天提醒，不会自动清除</p>
-                    <div id="memoList"></div>
-                    <div class="add-item-row">
-                        <input type="text" id="newMemoInput" placeholder="记录临时备忘...">
-                        <button class="btn btn-small" id="addMemoBtn">+</button>
-                    </div>
-                </section>
-            </aside>
-
-            <!-- 右侧预览区（紧凑版） -->
-            <main class="preview-area">
-                <div class="preview-header">
-                    <span>预览</span>
-                    <div class="preview-actions">
-                        <select id="previewScreen"></select>
-                        <button class="btn btn-small" id="fullscreenPreviewBtn" title="放大预览">🔍</button>
-                    </div>
-                </div>
-                <div class="canvas-container" id="canvasContainer">
-                    <canvas id="previewCanvas"></canvas>
-                    <div class="canvas-overlay" id="canvasOverlay">
-                        <span>点击放大</span>
-                    </div>
-                </div>
-                <div class="preview-footer">
-                    <span id="lastGenerated">上次生成：--</span>
-                </div>
-            </main>
+  <div class="ambient-bg"></div>
+  <div class="app-shell">
+    <!-- 顶部主控条 -->
+    <header class="topbar glass-panel">
+      <div class="brand">
+        <div class="brand-badge">WC2</div>
+        <div>
+          <h1>JH-WallCraft <span class="ver-tag">v3 // LIVE + SMART SYNC</span></h1>
+          <p class="subtitle">一号机 Wallpaper Engine 3秒实时联动 · 二号机事件驱动低开销同步</p>
         </div>
-    </div>
+      </div>
 
-    <!-- 全屏预览弹窗 -->
-    <div class="modal" id="previewModal">
-        <div class="modal-content fullscreen-preview">
-            <button class="close-btn" id="closePreviewBtn">&times;</button>
-            <canvas id="fullPreviewCanvas"></canvas>
+      <div class="cluster-strip" id="clusterStrip">
+        <span class="node-pill" id="pillM1"><i class="dot"></i>4090 --</span>
+        <span class="node-pill" id="pillM2"><i class="dot"></i>5080 --</span>
+        <span class="node-pill" id="pillComfy"><i class="dot"></i>ComfyUI --</span>
+        <span class="node-pill" id="pillNas"><i class="dot"></i>NAS --</span>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="refreshDataBtn">刷新遥测</button>
+        <button class="btn btn-ghost" id="applyM1Btn">重载一号机 WE</button>
+        <button class="btn btn-ghost" id="applyM2Btn">推送二号机</button>
+        <button class="btn btn-primary" id="applyAllBtn">全集群同步</button>
+      </div>
+    </header>
+
+    <!-- 主体布局：左侧编辑器 + 右侧多屏实时预览 -->
+    <div class="workspace">
+      <aside class="sidebar">
+        <!-- 场景与视觉 -->
+        <section class="panel glass-panel">
+          <div class="panel-head">
+            <h3>场景模式与视觉氛围</h3>
+            <span class="save-state" id="saveState">已同步</span>
+          </div>
+          <div class="segmented" id="modeSegmented">
+            <button data-mode="daily" class="active">日常极客</button>
+            <button data-mode="sprint">冲刺 DDL</button>
+            <button data-mode="clean">纯净极简</button>
+          </div>
+
+          <div class="field-row two-col" style="margin-top:12px;">
+            <div class="field">
+              <label>弥散光色系</label>
+              <select id="themePreset">
+                <option value="auto-circadian">自动昼夜流转</option>
+                <option value="geek-indigo">极客靛蓝 (Indigo)</option>
+                <option value="cyber-cyan">赛博青蓝 (Cyan)</option>
+                <option value="emerald-matrix">矩阵翡翠 (Emerald)</option>
+                <option value="amber-forge">熔岩琥珀 (Amber)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>光晕强度 <span id="glowVal">100%</span></label>
+              <input type="range" id="glowIntensity" min="30" max="150" value="100">
+            </div>
+          </div>
+
+          <div class="toggles-grid">
+            <label class="toggle-chip"><input type="checkbox" id="iconZones"><span>桌面图标收纳框</span></label>
+            <label class="toggle-chip"><input type="checkbox" id="bezelContinuousGlow"><span>跨物理边框光晕</span></label>
+            <label class="toggle-chip"><input type="checkbox" id="lateNightNudge"><span>凌晨护眼提醒</span></label>
+            <label class="toggle-chip"><input type="checkbox" id="rollingCalendar"><span>滚动 6 周日历</span></label>
+          </div>
+        </section>
+
+        <!-- Steam 底图叠加 -->
+        <section class="panel glass-panel">
+          <div class="panel-head">
+            <h3>Steam 底图叠加</h3>
+            <label class="p0-check" style="color:#bae6fd;"><input type="checkbox" id="bdEnabled"><span>启用底图</span></label>
+          </div>
+
+          <div class="segmented" id="bdTargetTabs">
+            <button data-target="m1_right" class="active">一号机·右屏</button>
+            <button data-target="m1_left">一号机·左屏</button>
+            <button data-target="m2_main">二号机 5080</button>
+          </div>
+
+          <div class="backdrop-grid" id="backdropGrid"></div>
+
+          <div class="field-row two-col" style="margin-top:10px;">
+            <div class="field">
+              <label>底图亮度 <span id="bdBrightnessVal">62%</span></label>
+              <input type="range" id="bdBrightness" min="20" max="100" value="62">
+            </div>
+            <div class="field">
+              <label>背景柔焦 <span id="bdBlurVal">2px</span></label>
+              <input type="range" id="bdBlur" min="0" max="20" value="2">
+            </div>
+          </div>
+
+          <div class="field-row two-col" style="margin-top:8px; align-items:center;">
+            <div class="field">
+              <label>暗角融合 <span id="bdVignetteVal">52%</span></label>
+              <input type="range" id="bdVignette" min="0" max="100" value="52">
+            </div>
+            <label class="toggle-chip" style="margin-top:10px;"><input type="checkbox" id="m2ShowNas"><span>二号机显示 NAS</span></label>
+          </div>
+        </section>
+
+        <!-- 核心倒计时与论文目标 -->
+        <section class="panel glass-panel">
+          <h3>核心目标与论文目标</h3>
+          <div class="field-row two-col">
+            <div class="field">
+              <label>倒计时名称</label>
+              <input type="text" id="countdownName" placeholder="硕士论文定稿">
+            </div>
+            <div class="field">
+              <label>目标日期</label>
+              <input type="date" id="countdownDate">
+            </div>
+          </div>
+          <div class="field-row two-col" style="margin-top:8px;">
+            <div class="field">
+              <label>起始日期（进度条）</label>
+              <input type="date" id="countdownStart">
+            </div>
+            <div class="field">
+              <label>论文目标字数 (CJK)</label>
+              <input type="number" id="thesisTargetWords" min="5000" step="1000">
+            </div>
+          </div>
+          <div class="field-row two-col" id="manualCalRange" style="margin-top:8px;">
+            <div class="field">
+              <label>日历开始</label>
+              <input type="date" id="calendarStart">
+            </div>
+            <div class="field">
+              <label>日历结束</label>
+              <input type="date" id="calendarEnd">
+            </div>
+          </div>
+        </section>
+
+        <!-- 今日聚焦待办 -->
+        <section class="panel glass-panel">
+          <h3>今日聚焦 // TOP FOCUS</h3>
+          <div class="item-list" id="todoList"></div>
+          <div class="add-row">
+            <input type="text" id="newTodoText" placeholder="新增今日待办...">
+            <label class="p0-check" title="标为 P0 紧急"><input type="checkbox" id="newTodoP0"><span>P0</span></label>
+            <button class="btn btn-small" id="addTodoBtn">添加</button>
+          </div>
+        </section>
+
+        <!-- 时间线事件 -->
+        <section class="panel glass-panel">
+          <div class="panel-head">
+            <h3>时间线事件 // EVENTS</h3>
+            <button class="btn btn-small" id="openEventModalBtn">+ 新增</button>
+          </div>
+          <div class="item-list" id="eventList"></div>
+        </section>
+
+        <!-- 关键里程碑与特殊标记 -->
+        <section class="panel glass-panel">
+          <div class="panel-head">
+            <h3>里程碑与标记 // MILESTONES</h3>
+            <div class="inline-btns">
+              <button class="btn btn-small" id="openMilestoneModalBtn">+ 里程碑</button>
+              <button class="btn btn-small" id="openMarkModalBtn">+ 标记</button>
+            </div>
+          </div>
+          <div class="item-list" id="milestoneList"></div>
+          <div class="item-list" id="markList" style="margin-top:6px;"></div>
+        </section>
+
+        <!-- 灵感与备忘 -->
+        <section class="panel glass-panel">
+          <h3>灵感与备忘 // MEMO</h3>
+          <div class="item-list" id="memoList"></div>
+          <div class="add-row">
+            <input type="text" id="newMemoText" placeholder="记录备忘...">
+            <button class="btn btn-small" id="addMemoBtn">添加</button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- 右侧预览区 -->
+      <main class="preview-stage glass-panel">
+        <div class="stage-header">
+          <div class="screen-tabs" id="screenTabs">
+            <button data-screen="m1_right" class="active">一号机 · 右屏 (2560×1440)</button>
+            <button data-screen="m1_left">一号机 · 左屏 (1920×1200)</button>
+            <button data-screen="m2_main">二号机 · RTX 5080</button>
+            <button data-screen="overview">三屏总览</button>
+          </div>
+          <div class="stage-meta">
+            <span id="telemetryTime">遥测时间：--</span>
+            <button class="btn btn-small" id="forcePreviewBtn">强制重绘预览</button>
+          </div>
         </div>
-    </div>
 
-    <!-- 事件编辑弹窗 -->
-    <div class="modal" id="eventModal">
-        <div class="modal-content">
-            <h3>编辑时间线事件</h3>
-            <div class="form-group">
-                <label>事件名称</label>
-                <input type="text" id="eventName">
+        <div class="preview-viewport" id="previewViewport">
+          <img id="singlePreviewImg" class="single-preview" alt="壁纸实时预览">
+          <div id="overviewGrid" class="overview-grid hidden">
+            <div class="ov-card">
+              <div class="ov-label">一号机 · 左屏 (BenQ SW240 · 日历与热力图)</div>
+              <img id="ovLeft" alt="m1_left">
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>开始日期</label>
-                    <input type="date" id="eventStart">
-                </div>
-                <div class="form-group">
-                    <label>结束日期</label>
-                    <input type="date" id="eventEnd">
-                </div>
+            <div class="ov-card">
+              <div class="ov-label">一号机 · 右屏 (主屏 · Focus HUD)</div>
+              <img id="ovRight" alt="m1_right">
             </div>
-            <div class="form-group">
-                <label>颜色</label>
-                <input type="color" id="eventColor" value="#60a5fa">
+            <div class="ov-card ov-wide">
+              <div class="ov-label">二号机 · RTX 5080 极简算力舱</div>
+              <img id="ovM2" alt="m2_main">
             </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" id="cancelEventBtn">取消</button>
-                <button class="btn btn-primary" id="saveEventBtn">保存</button>
-            </div>
+          </div>
         </div>
-    </div>
 
-    <!-- 节点编辑弹窗 -->
-    <div class="modal" id="milestoneModal">
-        <div class="modal-content">
-            <h3>编辑关键节点</h3>
-            <div class="form-group">
-                <label>节点名称</label>
-                <input type="text" id="milestoneName">
-            </div>
-            <div class="form-group">
-                <label>日期</label>
-                <input type="date" id="milestoneDate">
-            </div>
-            <div class="form-group">
-                <label>颜色</label>
-                <input type="color" id="milestoneColor" value="#4ade80">
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" id="cancelMilestoneBtn">取消</button>
-                <button class="btn btn-primary" id="saveMilestoneBtn">保存</button>
-            </div>
+        <div class="telemetry-bar" id="telemetryBar">
+          <span id="summaryThesis">论文进度：--</span>
+          <span id="summaryGithub">GitHub 12W：--</span>
+          <span id="summaryPapers">文献雷达：--</span>
+          <span id="toastMsg" class="toast-msg"></span>
         </div>
+      </main>
     </div>
+  </div>
 
-    <!-- 标记编辑弹窗 -->
-    <div class="modal" id="markModal">
-        <div class="modal-content">
-            <h3>编辑特殊标记</h3>
-            <div class="form-group">
-                <label>标记名称</label>
-                <input type="text" id="markName" placeholder="如：朋友考试">
-            </div>
-            <div class="form-group">
-                <label>日期</label>
-                <input type="date" id="markDate">
-            </div>
-            <div class="form-group">
-                <label>时间（可选）</label>
-                <input type="time" id="markTime">
-            </div>
-            <div class="form-group">
-                <label>图标</label>
-                <select id="markIcon">
-                    <option value="🎓">🎓 考试</option>
-                    <option value="🎂">🎂 生日</option>
-                    <option value="✈️">✈️ 出行</option>
-                    <option value="💼">💼 会议</option>
-                    <option value="🎉">🎉 庆祝</option>
-                    <option value="⚠️">⚠️ 注意</option>
-                </select>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" id="cancelMarkBtn">取消</button>
-                <button class="btn btn-primary" id="saveMarkBtn">保存</button>
-            </div>
-        </div>
+  <!-- 事件编辑弹窗 -->
+  <div class="modal" id="eventModal">
+    <div class="modal-card glass-panel">
+      <h3>添加时间线事件</h3>
+      <div class="field"><label>事件名称</label><input type="text" id="evName"></div>
+      <div class="field-row two-col">
+        <div class="field"><label>开始日期</label><input type="date" id="evStart"></div>
+        <div class="field"><label>结束日期</label><input type="date" id="evEnd"></div>
+      </div>
+      <div class="field"><label>颜色</label><input type="color" id="evColor" value="#38bdf8"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="closeEvBtn">取消</button>
+        <button class="btn btn-primary" id="saveEvBtn">保存</button>
+      </div>
     </div>
+  </div>
 
-    <script src="wallpaper-engine.js"></script>
-    <script src="assetdesk-client.js"></script>
-    <script src="app.js"></script>
+  <!-- 里程碑弹窗 -->
+  <div class="modal" id="milestoneModal">
+    <div class="modal-card glass-panel">
+      <h3>添加关键里程碑</h3>
+      <div class="field"><label>节点名称</label><input type="text" id="msName"></div>
+      <div class="field-row two-col">
+        <div class="field"><label>日期</label><input type="date" id="msDate"></div>
+        <div class="field"><label>颜色</label><input type="color" id="msColor" value="#f43f5e"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="closeMsBtn">取消</button>
+        <button class="btn btn-primary" id="saveMsBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 特殊标记弹窗 -->
+  <div class="modal" id="markModal">
+    <div class="modal-card glass-panel">
+      <h3>添加日历角标标记</h3>
+      <div class="field"><label>名称（或简称）</label><input type="text" id="mkName" placeholder="组会"></div>
+      <div class="field-row two-col">
+        <div class="field"><label>日期</label><input type="date" id="mkDate"></div>
+        <div class="field"><label>时间（可选）</label><input type="text" id="mkTime" placeholder="15:00"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="closeMkBtn">取消</button>
+        <button class="btn btn-primary" id="saveMkBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

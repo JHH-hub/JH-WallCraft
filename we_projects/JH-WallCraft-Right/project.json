@@ -1,0 +1,22 @@
+{
+  "contentrating": "Everyone",
+  "description": "JH-WallCraft v3 一号机右屏实时壁纸：秒级时钟、3秒实时 RTX 4090/内存/磁盘遥测、可点击待办与模式切换、论文字数与最新论文雷达。",
+  "file": "index.html",
+  "general": {
+    "properties": {
+      "apibase": {
+        "index": 0,
+        "order": 100,
+        "text": "本地控制服务地址",
+        "type": "textinput",
+        "value": "http://127.0.0.1:18766"
+      }
+    },
+    "supportsaudioprocessing": false
+  },
+  "preview": "preview.jpg",
+  "tags": ["Technology", "Productivity"],
+  "title": "JH-WallCraft Right · Focus HUD (Live)",
+  "type": "web",
+  "visibility": "private"
+}

@@ -1,1112 +1,617 @@
-/**
- * 日程壁纸生成器 - 应用主逻辑
- */
+// JH-WallCraft v2 Web Console Controller
 
-class WallpaperApp {
-    constructor() {
-        this.engine = new WallpaperEngine();
-        this.assetDeskClient = window.AssetDeskClient ? new AssetDeskClient() : null;
-        this.config = this.loadConfig();
-        this.customBgImage = null;
-        this.lastGeneratedDate = null;
-        this.autoUpdateInterval = null;
-        
-        this.init();
+class WallCraftConsole {
+  constructor() {
+    this.config = null;
+    this.telemetry = null;
+    this.backdrops = [];
+    this.backdropTarget = 'm1_right';
+    this.activeScreen = 'm1_right';
+    this.saveTimer = null;
+    this.init();
+  }
+
+  async init() {
+    this.bindEvents();
+    await this.loadBackdrops();
+    await this.loadConfig();
+    await this.loadTelemetry(false);
+    this.refreshPreview(false);
+    setInterval(() => this.loadTelemetry(false), 30000);
+  }
+
+  async api(url, options = {}) {
+    const res = await fetch(url, options);
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return data;
+  }
+
+  toast(msg, isError = false) {
+    const el = document.getElementById('toastMsg');
+    el.textContent = msg;
+    el.style.color = isError ? '#f43f5e' : '#34d399';
+    if (msg) {
+      setTimeout(() => {
+        if (el.textContent === msg) el.textContent = '';
+      }, 5000);
+    }
+  }
+
+  async loadBackdrops() {
+    try {
+      const data = await this.api('/api/backdrops');
+      this.backdrops = data.backdrops || [];
+      this.renderBackdropPicker();
+    } catch (e) {
+      console.error('loadBackdrops failed', e);
+    }
+  }
+
+  async loadConfig() {
+    try {
+      const data = await this.api('/api/config');
+      this.config = data.config;
+      this.renderConfigUI();
+    } catch (e) {
+      this.toast(`读取配置失败: ${e.message}`, true);
+    }
+  }
+
+  scheduleSave(refreshPreviewAfter = true) {
+    document.getElementById('saveState').textContent = '保存中…';
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => this.saveConfig(refreshPreviewAfter), 250);
+  }
+
+  async saveConfig(refreshPreviewAfter = true) {
+    if (!this.config) return;
+    try {
+      const data = await this.api('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.config),
+      });
+      this.config = data.config;
+      document.getElementById('saveState').textContent = '已保存';
+      if (refreshPreviewAfter) {
+        this.refreshPreview(true);
+      }
+    } catch (e) {
+      document.getElementById('saveState').textContent = '保存失败';
+      this.toast(`保存配置失败: ${e.message}`, true);
+    }
+  }
+
+  async loadTelemetry(force = false) {
+    try {
+      const data = await this.api(`/api/telemetry?force=${force ? 1 : 0}`);
+      this.telemetry = data.telemetry;
+      this.renderTelemetryUI();
+    } catch (e) {
+      this.toast(`遥测采集失败: ${e.message}`, true);
+    }
+  }
+
+  renderTelemetryUI() {
+    const t = this.telemetry;
+    if (!t) return;
+    document.getElementById('telemetryTime').textContent = `遥测时间：${t.collected_at || '--'}`;
+
+    const setPill = (id, text, cls) => {
+      const el = document.getElementById(id);
+      el.className = `node-pill ${cls}`;
+      el.innerHTML = `<i class="dot"></i>${text}`;
+    };
+
+    const g1 = t.m1?.gpu;
+    setPill('pillM1', g1?.ok ? `4090 ${g1.util_pct}% · ${g1.temp_c}C` : '4090 离线', g1?.ok ? 'ok' : 'err');
+
+    const m2 = t.m2 || {};
+    const g2 = m2.gpu;
+    if (m2.agent_online && g2?.ok) {
+      setPill('pillM2', `5080 ${g2.util_pct}% · ${g2.temp_c}C`, m2.busy ? 'busy' : 'ok');
+    } else {
+      setPill('pillM2', '5080 离线', 'err');
     }
 
-    /**
-     * 加载配置
-     */
-    loadConfig() {
-        const saved = localStorage.getItem('wallpaper_config');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error('配置解析失败', e);
-            }
-        }
-        
-        // 默认配置
-        const today = new Date();
-        const startDate = new Date(today);
-        startDate.setDate(today.getDate() - today.getDay() + 1); // 本周一
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 41); // 6周
-        return {
-            glowEnabled: true,
-            bgImageEnabled: false,
-            bgBrightness: 100,
-            bgBlur: 0,
-            bgVignette: 50,
-            screens: [
-                { name: '主屏幕', width: 3840, height: 2400 }
-            ],
-            calendarStart: this.formatDate(startDate),
-            calendarEnd: this.formatDate(endDate),
-            countdown: {
-                name: '毕业答辩',
-                date: '2027-06-01'
-            },
-            todos: [],
-            events: [
-                { name: '🔴 留用答辩·P0', start: '2026-08-20', end: '2026-08-27', color: '#ef4444' },
-                { name: '春芽计划·提交', start: '2026-08-01', end: '2026-08-10', color: '#4ade80' },
-                { name: '产品展示', start: '2026-08-18', end: '2026-08-18', color: '#fbbf24' },
-                { name: '论文写作', start: '2026-08-01', end: '2026-08-31', color: '#60a5fa' },
-                { name: '毕设中筛·准备', start: '2026-09-01', end: '2026-09-15', color: '#a78bfa' },
-            ],
-            milestones: [
-                { name: '春芽提交', date: '2026-08-10', color: '#4ade80' },
-                { name: '周会', date: '2026-08-13', color: '#60a5fa' },
-                { name: '产品展示', date: '2026-08-18', color: '#fbbf24' },
-                { name: '周会', date: '2026-08-20', color: '#60a5fa' },
-                { name: '🔴 答辩日', date: '2026-08-27', color: '#ef4444' },
-            ],
-            marks: [],
-            autoUpdate: true
-        };
+    const cm = m2.comfy || {};
+    if (cm.online) {
+      setPill('pillComfy', `ComfyUI R${cm.running}/Q${cm.pending}`, cm.running > 0 ? 'busy' : 'ok');
+    } else {
+      setPill('pillComfy', 'ComfyUI 离线', 'err');
     }
 
-    /**
-     * 保存配置
-     */
-    saveConfig() {
-        localStorage.setItem('wallpaper_config', JSON.stringify(this.config));
-    }
+    const nas = t.nas || {};
+    setPill('pillNas', nas.ok ? `NAS ${nas.vol_pct || 0}%` : 'NAS 离线', nas.ok ? 'ok' : 'err');
 
-    /**
-     * 初始化应用
-     */
-    init() {
-        this.bindElements();
-        this.bindEvents();
-        this.renderUI();
-        this.initEngine();
-        this.startAutoUpdate();
-        this.generatePreview();
+    const th = t.thesis || {};
+    const gh = t.github || {};
+    const pp = t.papers || {};
+    document.getElementById('summaryThesis').textContent = `论文进度：${(th.total_cjk || 0).toLocaleString()} / ${(th.target_words || 40000).toLocaleString()} 字 (${th.pct || 0}%)`;
+    document.getElementById('summaryGithub').textContent = `GitHub 12W：${gh.total_commits || 0} commits · 连续 ${gh.streak_days || 0} 天`;
+    document.getElementById('summaryPapers').textContent = `文献雷达：共 ${pp.total_docs || 0} 篇 · 今日 +${pp.today_count || 0}`;
+  }
 
-        // 启动时静默尝试从 AssetDesk 同步待办
-        this.importFromAssetDesk(true);
+  renderConfigUI() {
+    const c = this.config;
+    if (!c) return;
 
-        // 启动时检测本地壁纸服务是否在线
-        this.checkWallpaperServer();
-    }
+    document.querySelectorAll('#modeSegmented button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === (c.mode || 'daily'));
+    });
+    document.getElementById('themePreset').value = c.themePreset || 'auto-circadian';
+    document.getElementById('glowIntensity').value = c.glowIntensity ?? 100;
+    document.getElementById('glowVal').textContent = `${c.glowIntensity ?? 100}%`;
+    document.getElementById('iconZones').checked = c.iconZones !== false;
+    document.getElementById('bezelContinuousGlow').checked = c.bezelContinuousGlow !== false;
+    document.getElementById('lateNightNudge').checked = c.lateNightNudge !== false;
+    document.getElementById('rollingCalendar').checked = c.rollingCalendar !== false;
 
-    /**
-     * 检测本地壁纸服务是否在线
-     */
-    async checkWallpaperServer() {
-        const serverUrl = this.config.wallpaperServerUrl || 'http://127.0.0.1:18766';
-        try {
-            const res = await fetch(`${serverUrl}/health`, { method: 'GET' });
-            if (res.ok) {
-                this.updateAutoUpdateStatus(true);
-            } else {
-                this.updateAutoUpdateStatus(false);
-            }
-        } catch (e) {
-            this.updateAutoUpdateStatus(false);
-        }
-    }
+    const manualBox = document.getElementById('manualCalRange');
+    manualBox.classList.toggle('hidden', c.rollingCalendar !== false);
 
-    /**
-     * 绑定DOM元素
-     */
-    bindElements() {
-        // 弥散光设置
-        this.glowEnabled = document.getElementById('glowEnabled');
-        this.gradientSettings = document.getElementById('gradientSettings');
-        this.glowCount = document.getElementById('glowCount');
-        this.glowPreset = document.getElementById('glowPreset');
-        this.customColorGroup = document.getElementById('customColorGroup');
-        this.glowColor1 = document.getElementById('glowColor1');
-        this.glowColor2 = document.getElementById('glowColor2');
-        this.glowPosition = document.getElementById('glowPosition');
-        this.glowIntensity = document.getElementById('glowIntensity');
-        this.glowIntensityVal = document.getElementById('glowIntensityVal');
+    document.getElementById('countdownName').value = c.countdown?.name || '';
+    document.getElementById('countdownDate').value = c.countdown?.date || '';
+    document.getElementById('countdownStart').value = c.countdown?.startDate || '';
+    document.getElementById('thesisTargetWords').value = c.thesisTargetWords || 40000;
+    document.getElementById('calendarStart').value = c.calendarStart || '';
+    document.getElementById('calendarEnd').value = c.calendarEnd || '';
 
-        // 背景图片设置
-        this.bgImageEnabled = document.getElementById('bgImageEnabled');
-        this.bgImageSettings = document.getElementById('bgImageSettings');
-        this.bgUpload = document.getElementById('bgUpload');
-        this.bgPreview = document.getElementById('bgPreview');
-        this.bgBrightness = document.getElementById('bgBrightness');
-        this.bgBrightnessVal = document.getElementById('bgBrightnessVal');
-        this.bgBlur = document.getElementById('bgBlur');
-        this.bgBlurVal = document.getElementById('bgBlurVal');
-        this.bgVignette = document.getElementById('bgVignette');
-        this.bgVignetteVal = document.getElementById('bgVignetteVal');
+    this.renderBackdropControls();
+    this.renderTodos();
+    this.renderEvents();
+    this.renderMilestones();
+    this.renderMarks();
+    this.renderMemos();
+  }
 
-        // 屏幕配置
-        this.screenList = document.getElementById('screenList');
-        this.addScreenBtn = document.getElementById('addScreenBtn');
-        this.previewScreen = document.getElementById('previewScreen');
+  renderBackdropControls() {
+    const c = this.config;
+    if (!c) return;
+    const bd = c.backdrops || {};
+    document.getElementById('bdEnabled').checked = bd.enabled !== false;
+    document.getElementById('m2ShowNas').checked = c.m2ShowNas !== false;
 
-        // 日历范围
-        this.calStart = document.getElementById('calStart');
-        this.calEnd = document.getElementById('calEnd');
+    document.querySelectorAll('#bdTargetTabs button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.target === this.backdropTarget);
+    });
 
-        // 倒计时
-        this.countdownName = document.getElementById('countdownName');
-        this.countdownDate = document.getElementById('countdownDate');
+    const isM2 = this.backdropTarget === 'm2_main';
+    const br = isM2 ? (bd.m2Brightness ?? 78) : (bd.brightness ?? 62);
+    const bl = isM2 ? (bd.m2Blur ?? 0) : (bd.blur ?? 2);
+    const vig = bd.vignette ?? 52;
 
-        // 待办
-        this.todoList = document.getElementById('todoList');
-        this.newTodoInput = document.getElementById('newTodoInput');
-        this.addTodoBtn = document.getElementById('addTodoBtn');
+    document.getElementById('bdBrightness').value = br;
+    document.getElementById('bdBrightnessVal').textContent = `${br}%`;
+    document.getElementById('bdBlur').value = bl;
+    document.getElementById('bdBlurVal').textContent = `${bl}px`;
+    document.getElementById('bdVignette').value = vig;
+    document.getElementById('bdVignetteVal').textContent = `${vig}%`;
 
-        // 事件
-        this.eventList = document.getElementById('eventList');
-        this.addEventBtn = document.getElementById('addEventBtn');
-        this.eventModal = document.getElementById('eventModal');
+    this.renderBackdropPicker();
+  }
 
-        // 节点
-        this.milestoneList = document.getElementById('milestoneList');
-        this.addMilestoneBtn = document.getElementById('addMilestoneBtn');
-        this.milestoneModal = document.getElementById('milestoneModal');
-
-        // 标记
-        this.markList = document.getElementById('markList');
-        this.addMarkBtn = document.getElementById('addMarkBtn');
-        this.markModal = document.getElementById('markModal');
-
-        // 预览
-        this.previewCanvas = document.getElementById('previewCanvas');
-        this.canvasContainer = document.getElementById('canvasContainer');
-        this.canvasOverlay = document.getElementById('canvasOverlay');
-        this.fullscreenPreviewBtn = document.getElementById('fullscreenPreviewBtn');
-        this.previewModal = document.getElementById('previewModal');
-        this.fullPreviewCanvas = document.getElementById('fullPreviewCanvas');
-        this.closePreviewBtn = document.getElementById('closePreviewBtn');
-        this.lastGenerated = document.getElementById('lastGenerated');
-        this.autoUpdateStatus = document.getElementById('autoUpdateStatus');
-
-        // 操作按钮
-        this.setWallpaperBtn = document.getElementById('setWallpaperBtn');
-        this.exportBtn = document.getElementById('exportBtn');
-
-        // AssetDesk 联动
-        this.assetdeskFile      = document.getElementById('assetdeskFile');
-        this.assetdeskImportBtn = document.getElementById('assetdeskImportBtn');
-        this.assetdeskClearBtn  = document.getElementById('assetdeskClearBtn');
-        this.assetdeskStatus    = document.getElementById('assetdeskStatus');
-
-        // 备忘录
-        this.memoList     = document.getElementById('memoList');
-        this.newMemoInput = document.getElementById('newMemoInput');
-        this.addMemoBtn   = document.getElementById('addMemoBtn');
-    }
-
-    /**
-     * 绑定事件
-     */
-    bindEvents() {
-        // 弥散光开关
-        this.glowEnabled.addEventListener('change', () => {
-            this.config.glowEnabled = this.glowEnabled.checked;
-            this.gradientSettings.style.display = this.config.glowEnabled ? 'block' : 'none';
-            this.saveConfig();
-            this.generatePreview();
+  renderBackdropPicker() {
+    const grid = document.getElementById('backdropGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const currentId = (this.config?.backdrops || {})[this.backdropTarget] || 'none';
+    this.backdrops.forEach(item => {
+      const card = document.createElement('div');
+      card.className = `bd-card ${item.id === currentId ? 'active' : ''}`;
+      card.title = item.name;
+      card.innerHTML = `
+        <img src="/api/backdrop-thumb/${encodeURIComponent(item.id)}" loading="lazy" alt="${this.esc(item.name)}">
+        <div class="bd-name">${this.esc(item.name.replace(/\s*\(.*?\)\s*/g, ''))}</div>
+      `;
+      card.addEventListener('click', () => {
+        if (!this.config) return;
+        this.config.backdrops = this.config.backdrops || {};
+        this.config.backdrops[this.backdropTarget] = item.id;
+        this.config.backdrops.enabled = true;
+        document.getElementById('bdEnabled').checked = true;
+        this.activeScreen = this.backdropTarget;
+        document.querySelectorAll('#screenTabs button').forEach(b => {
+          b.classList.toggle('active', b.dataset.screen === this.activeScreen);
         });
+        this.renderBackdropPicker();
+        this.scheduleSave();
+      });
+      grid.appendChild(card);
+    });
+  }
 
-        // 背景图片开关
-        this.bgImageEnabled.addEventListener('change', () => {
-            this.config.bgImageEnabled = this.bgImageEnabled.checked;
-            this.bgImageSettings.style.display = this.config.bgImageEnabled ? 'block' : 'none';
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 背景图上传
-        this.bgUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this.customBgImage = img;
-                        this.engine.setCustomBackground(img);
-                        this.bgPreview.innerHTML = `<img src="${ev.target.result}">`;
-                        // 保存图片数据到配置
-                        this.config.customBgData = ev.target.result;
-                        this.saveConfig();
-                        this.generatePreview();
-                    };
-                    img.src = ev.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // 图片亮度
-        this.bgBrightness.addEventListener('input', () => {
-            this.config.bgBrightness = parseInt(this.bgBrightness.value);
-            this.bgBrightnessVal.textContent = this.config.bgBrightness + '%';
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 图片模糊
-        this.bgBlur.addEventListener('input', () => {
-            this.config.bgBlur = parseInt(this.bgBlur.value);
-            this.bgBlurVal.textContent = this.config.bgBlur + 'px';
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 暗角强度
-        this.bgVignette.addEventListener('input', () => {
-            this.config.bgVignette = parseInt(this.bgVignette.value);
-            this.bgVignetteVal.textContent = this.config.bgVignette + '%';
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 光源数量
-        this.glowCount.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.glowCount.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.config.glowCount = parseInt(btn.dataset.count);
-                this.saveConfig();
-                this.generatePreview();
-            });
-        });
-
-        // 弥散光色系切换
-        this.glowPreset.addEventListener('change', () => {
-            this.config.glowPreset = this.glowPreset.value;
-            this.customColorGroup.style.display = this.config.glowPreset === 'custom' ? 'block' : 'none';
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 自定义颜色
-        this.glowColor1.addEventListener('input', () => {
-            this.config.glowColor1 = this.glowColor1.value;
-            this.saveConfig();
-            this.generatePreview();
-        });
-        this.glowColor2.addEventListener('input', () => {
-            this.config.glowColor2 = this.glowColor2.value;
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 光源位置
-        this.glowPosition.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.glowPosition.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.config.glowPosition = btn.dataset.pos;
-                this.saveConfig();
-                this.generatePreview();
-            });
-        });
-
-        // 光源强度
-        this.glowIntensity.addEventListener('input', () => {
-            this.config.glowIntensity = parseInt(this.glowIntensity.value);
-            this.glowIntensityVal.textContent = this.config.glowIntensity + '%';
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 添加屏幕
-        this.addScreenBtn.addEventListener('click', () => {
-            this.config.screens.push({ name: `屏幕${this.config.screens.length + 1}`, width: 1920, height: 1080 });
-            this.saveConfig();
-            this.renderScreens();
-        });
-
-        // 预览屏幕切换
-        this.previewScreen.addEventListener('change', () => {
-            this.generatePreview();
-        });
-
-        // 日历范围
-        this.calStart.addEventListener('change', () => {
-            this.config.calendarStart = this.calStart.value;
-            this.saveConfig();
-            this.generatePreview();
-        });
-        this.calEnd.addEventListener('change', () => {
-            this.config.calendarEnd = this.calEnd.value;
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 倒计时
-        this.countdownName.addEventListener('change', () => {
-            this.config.countdown.name = this.countdownName.value;
-            this.saveConfig();
-            this.generatePreview();
-        });
-        this.countdownDate.addEventListener('change', () => {
-            this.config.countdown.date = this.countdownDate.value;
-            this.saveConfig();
-            this.generatePreview();
-        });
-
-        // 添加待办
-        this.addTodoBtn.addEventListener('click', () => this.addTodo());
-        this.newTodoInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addTodo();
-        });
-
-        // 添加事件/节点/标记
-        this.addEventBtn.addEventListener('click', () => this.showEventModal());
-        this.addMilestoneBtn.addEventListener('click', () => this.showMilestoneModal());
-        this.addMarkBtn.addEventListener('click', () => this.showMarkModal());
-
-        // 弹窗按钮
-        document.getElementById('cancelEventBtn').addEventListener('click', () => this.hideModal('eventModal'));
-        document.getElementById('saveEventBtn').addEventListener('click', () => this.saveEvent());
-        document.getElementById('cancelMilestoneBtn').addEventListener('click', () => this.hideModal('milestoneModal'));
-        document.getElementById('saveMilestoneBtn').addEventListener('click', () => this.saveMilestone());
-        document.getElementById('cancelMarkBtn').addEventListener('click', () => this.hideModal('markModal'));
-        document.getElementById('saveMarkBtn').addEventListener('click', () => this.saveMark());
-
-        // 点击遮罩关闭弹窗
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.classList.remove('active');
-                }
-            });
-        });
-
-        // 预览放大
-        this.canvasContainer.addEventListener('click', () => this.showFullPreview());
-        this.fullscreenPreviewBtn.addEventListener('click', () => this.showFullPreview());
-        this.closePreviewBtn.addEventListener('click', () => this.hideModal('previewModal'));
-
-        // 一键设置壁纸
-        this.setWallpaperBtn.addEventListener('click', () => this.setAsWallpaper());
-        this.exportBtn.addEventListener('click', () => this.exportAll());
-
-        // AssetDesk 联动
-        this.assetdeskImportBtn.addEventListener('click', () => this.importFromAssetDesk(false));
-        this.assetdeskClearBtn.addEventListener('click', () => this.clearAssetDeskTodos());
-
-        // 备忘录
-        if (this.addMemoBtn) {
-            this.addMemoBtn.addEventListener('click', () => this.addMemo());
-            this.newMemoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.addMemo(); });
-        }
-    }
-
-    /**
-     * 初始化渲染引擎
-     */
-    initEngine() {
-        this.engine.init(this.previewCanvas, this.config);
-    }
-
-    /**
-     * 渲染UI
-     */
-    renderUI() {
-        // 弥散光开关
-        this.glowEnabled.checked = this.config.glowEnabled !== false;
-        this.gradientSettings.style.display = this.config.glowEnabled !== false ? 'block' : 'none';
-
-        // 背景图片开关
-        this.bgImageEnabled.checked = this.config.bgImageEnabled || false;
-        this.bgImageSettings.style.display = this.config.bgImageEnabled ? 'block' : 'none';
-
-        // 图片参数
-        this.bgBrightness.value = this.config.bgBrightness || 100;
-        this.bgBrightnessVal.textContent = (this.config.bgBrightness || 100) + '%';
-        this.bgBlur.value = this.config.bgBlur || 0;
-        this.bgBlurVal.textContent = (this.config.bgBlur || 0) + 'px';
-        this.bgVignette.value = this.config.bgVignette || 50;
-        this.bgVignetteVal.textContent = (this.config.bgVignette || 50) + '%';
-
-        // 弥散光设置
-        this.glowPreset.value = this.config.glowPreset || 'blue-purple';
-        this.customColorGroup.style.display = this.config.glowPreset === 'custom' ? 'block' : 'none';
-        this.glowColor1.value = this.config.glowColor1 || '#5078dc';
-        this.glowColor2.value = this.config.glowColor2 || '#a064c8';
-        this.glowIntensity.value = this.config.glowIntensity || 100;
-        this.glowIntensityVal.textContent = (this.config.glowIntensity || 100) + '%';
-        
-        // 光源数量
-        const count = this.config.glowCount || 3;
-        this.glowCount.querySelectorAll('button').forEach(btn => {
-            btn.classList.toggle('active', parseInt(btn.dataset.count) === count);
-        });
-        
-        // 光源位置
-        const pos = this.config.glowPosition || 'top-right';
-        this.glowPosition.querySelectorAll('button').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.pos === pos);
-        });
-
-        // 恢复自定义背景图
-        if (this.config.customBgData) {
-            const img = new Image();
-            img.onload = () => {
-                this.customBgImage = img;
-                this.engine.setCustomBackground(img);
-                this.bgPreview.innerHTML = `<img src="${this.config.customBgData}">`;
-                this.generatePreview();
-            };
-            img.src = this.config.customBgData;
-        }
-
-        // 日历范围
-        this.calStart.value = this.config.calendarStart;
-        this.calEnd.value = this.config.calendarEnd;
-
-        // 倒计时
-        this.countdownName.value = this.config.countdown?.name || '';
-        this.countdownDate.value = this.config.countdown?.date || '';
-
-        // 渲染列表
-        this.renderScreens();
+  renderTodos() {
+    const list = document.getElementById('todoList');
+    list.innerHTML = '';
+    (this.config.todos || []).forEach((t, idx) => {
+      const row = document.createElement('div');
+      row.className = `list-row ${t.done ? 'done' : ''} ${t.p0 ? 'p0' : ''}`;
+      row.innerHTML = `
+        <input type="checkbox" ${t.done ? 'checked' : ''}>
+        <span class="row-title" title="${this.esc(t.text)}">${this.esc(t.text)}</span>
+        <button class="icon-btn ${t.p0 ? 'p0-active' : ''}" title="切换 P0">P0</button>
+        <button class="icon-btn del-btn" title="删除">✕</button>
+      `;
+      row.querySelector('input').addEventListener('change', e => {
+        t.done = e.target.checked;
         this.renderTodos();
-        this.renderMemos();
+        this.scheduleSave();
+      });
+      row.querySelectorAll('button')[0].addEventListener('click', () => {
+        t.p0 = !t.p0;
+        this.renderTodos();
+        this.scheduleSave();
+      });
+      row.querySelector('.del-btn').addEventListener('click', () => {
+        this.config.todos.splice(idx, 1);
+        this.renderTodos();
+        this.scheduleSave();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  renderEvents() {
+    const list = document.getElementById('eventList');
+    list.innerHTML = '';
+    (this.config.events || []).forEach((ev, idx) => {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <span class="color-swatch" style="background:${this.esc(ev.color || '#38bdf8')}"></span>
+        <span class="row-title">${this.esc(ev.name)}</span>
+        <span class="row-meta">${this.esc(ev.start.slice(5))}~${this.esc(ev.end.slice(5))}</span>
+        <button class="icon-btn">✕</button>
+      `;
+      row.querySelector('button').addEventListener('click', () => {
+        this.config.events.splice(idx, 1);
         this.renderEvents();
+        this.scheduleSave();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  renderMilestones() {
+    const list = document.getElementById('milestoneList');
+    list.innerHTML = '';
+    (this.config.milestones || []).forEach((ms, idx) => {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <span class="color-swatch" style="background:${this.esc(ms.color || '#f43f5e')}"></span>
+        <span class="row-title">${this.esc(ms.name)}</span>
+        <span class="row-meta">${this.esc(ms.date)}</span>
+        <button class="icon-btn">✕</button>
+      `;
+      row.querySelector('button').addEventListener('click', () => {
+        this.config.milestones.splice(idx, 1);
         this.renderMilestones();
+        this.scheduleSave();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  renderMarks() {
+    const list = document.getElementById('markList');
+    list.innerHTML = '';
+    (this.config.marks || []).forEach((mk, idx) => {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <span class="color-swatch" style="background:#f472b6"></span>
+        <span class="row-title">${this.esc(mk.name || '')} ${this.esc(mk.time || '')}</span>
+        <span class="row-meta">${this.esc(mk.date)}</span>
+        <button class="icon-btn">✕</button>
+      `;
+      row.querySelector('button').addEventListener('click', () => {
+        this.config.marks.splice(idx, 1);
         this.renderMarks();
-    }
+        this.scheduleSave();
+      });
+      list.appendChild(row);
+    });
+  }
 
-    /**
-     * 显示全屏预览
-     */
-    showFullPreview() {
-        const screenIndex = parseInt(this.previewScreen.value) || 0;
-        const screen = this.config.screens[screenIndex];
-        
-        // 生成全分辨率壁纸到全屏canvas
-        this.fullPreviewCanvas.width = screen.width;
-        this.fullPreviewCanvas.height = screen.height;
-        
-        const fullCtx = this.fullPreviewCanvas.getContext('2d');
-        fullCtx.drawImage(this.previewCanvas, 0, 0, this.previewCanvas.width, this.previewCanvas.height, 
-                          0, 0, screen.width, screen.height);
-        
-        // 重新用引擎生成全分辨率
-        const tempCanvas = this.engine.canvas;
-        this.engine.canvas = this.fullPreviewCanvas;
-        this.engine.ctx = fullCtx;
-        this.engine.generate(screen.width, screen.height);
-        this.engine.canvas = tempCanvas;
-        this.engine.ctx = tempCanvas.getContext('2d');
-        
-        this.previewModal.classList.add('active');
-    }
-
-    /**
-     * 一键设置壁纸
-     */
-    async setAsWallpaper() {
-        const screenIndex = parseInt(this.previewScreen.value) || 0;
-        const screen = this.config.screens[screenIndex];
-        
-        // 生成全分辨率壁纸
-        this.engine.generate(screen.width, screen.height);
-        
-        // 通过本地服务设置桌面壁纸
-        const result = await this.setWallpaperViaServer();
-        
-        // 提示用户
-        this.showNotification('壁纸已设置', '桌面壁纸已更新');
-        
-        // 更新预览
-        this.generatePreview();
-
-        // 启动时静默尝试从 AssetDesk 同步待办
-        this.importFromAssetDesk(true);
-    }
-
-    /**
-     * 渲染屏幕列表
-     */
-    renderScreens() {
-        this.screenList.innerHTML = this.config.screens.map((screen, index) => `
-            <div class="screen-item" data-index="${index}">
-                <input type="text" value="${screen.name}" class="screen-name" style="width: 80px">
-                <input type="number" value="${screen.width}" class="screen-width"> × 
-                <input type="number" value="${screen.height}" class="screen-height">
-                <button class="delete-btn" onclick="app.deleteScreen(${index})">×</button>
-            </div>
-        `).join('');
-
-        // 更新预览下拉
-        this.previewScreen.innerHTML = this.config.screens.map((screen, index) => 
-            `<option value="${index}">${screen.name} (${screen.width}×${screen.height})</option>`
-        ).join('');
-
-        // 绑定输入事件
-        this.screenList.querySelectorAll('.screen-item').forEach((item, index) => {
-            item.querySelector('.screen-name').addEventListener('change', (e) => {
-                this.config.screens[index].name = e.target.value;
-                this.saveConfig();
-                this.renderScreens();
-            });
-            item.querySelector('.screen-width').addEventListener('change', (e) => {
-                this.config.screens[index].width = parseInt(e.target.value) || 1920;
-                this.saveConfig();
-                this.renderScreens();
-            });
-            item.querySelector('.screen-height').addEventListener('change', (e) => {
-                this.config.screens[index].height = parseInt(e.target.value) || 1080;
-                this.saveConfig();
-                this.renderScreens();
-            });
-        });
-    }
-
-    /**
-     * 删除屏幕
-     */
-    deleteScreen(index) {
-        if (this.config.screens.length > 1) {
-            this.config.screens.splice(index, 1);
-            this.saveConfig();
-            this.renderScreens();
-        }
-    }
-
-    /**
-     * 渲染待办列表
-     */
-    renderTodos() {
-        this.todoList.innerHTML = this.config.todos.map((todo, index) => `
-            <div class="todo-item ${todo.done ? 'done' : ''}" data-index="${index}">
-                <input type="checkbox" ${todo.done ? 'checked' : ''} onchange="app.toggleTodo(${index})">
-                <span class="todo-text">${todo.text}</span>
-                <button class="delete-btn" onclick="app.deleteTodo(${index})">×</button>
-            </div>
-        `).join('');
-    }
-
-    /**
-     * 添加待办
-     */
-    addTodo() {
-        const text = this.newTodoInput.value.trim();
-        if (text) {
-            this.config.todos.push({ text, done: false });
-            this.newTodoInput.value = '';
-            this.saveConfig();
-            this.renderTodos();
-            this.generatePreview();
-        }
-    }
-
-    /**
-     * 切换待办状态
-     */
-    toggleTodo(index) {
-        this.config.todos[index].done = !this.config.todos[index].done;
-        this.saveConfig();
-        this.renderTodos();
-        this.generatePreview();
-
-        // 启动时静默尝试从 AssetDesk 同步待办
-        this.importFromAssetDesk(true);
-    }
-
-    /**
-     * 删除待办
-     */
-    deleteTodo(index) {
-        this.config.todos.splice(index, 1);
-        this.saveConfig();
-        this.renderTodos();
-        this.generatePreview();
-    }
-
-    // ─────────────────────────────────────────────
-    // AssetDesk 联动
-    // ─────────────────────────────────────────────
-
-    /**
-     * 解析 events.jsonl，重放事件流得出每个 slot 的当前状态
-     * 规则：每个 sid 取最后一条事件的 to_state
-     * 筛出 to_state 为 todo/partial 的 slot 作为待办
-     */
-    /**
-     * 从 AssetDesk API 自动拉取未完成槽位（GET http://127.0.0.1:18765/slots）
-     * silent=true 时失败不显示错误（用于启动时静默尝试）
-     */
-    async importFromAssetDesk(silent = false) {
-        if (!this.assetDeskClient) {
-            if (this.assetdeskStatus) {
-                this.assetdeskStatus.textContent = 'AssetDesk 客户端未加载';
-                this.assetdeskStatus.style.color = '#fb923c';
-            }
-            return;
-        }
-
-        if (this.assetdeskStatus) {
-            this.assetdeskStatus.textContent = '正在连接 AssetDesk...';
-            this.assetdeskStatus.style.color = '#8888aa';
-        }
-
-        const result = await this.assetDeskClient.getWallpaperData();
-        if (!result.ok) {
-            console.warn('AssetDesk 同步失败', result.error);
-            if (this.assetdeskStatus) {
-                this.assetdeskStatus.textContent = silent ? 'AssetDesk 未连接' : `AssetDesk 未连接：${result.error || '请先启动 AssetDesk'}`;
-                this.assetdeskStatus.style.color = silent ? '#444455' : '#fb923c';
-            }
-            return;
-        }
-
-        const snapshot = result.data;
-        const newTodos = this.assetDeskClient.toTodos(snapshot);
-        this.config.assetDeskSnapshot = snapshot;
-        this.config.todos = this.config.todos.filter(t => !t.fromAssetDesk);
-        this.config.todos.push(...newTodos);
-
-        this.saveConfig();
-        this.renderTodos();
-        this.generatePreview();
-
-        if (this.assetdeskStatus) {
-            const summary = snapshot.weekSummary || {};
-            const count = summary.pending_total ?? newTodos.length;
-            const suffix = result.fromCache ? '（使用上次快照）' : '';
-            this.assetdeskStatus.textContent = count > 0
-                ? `已同步 ${count} 个资产焦点${suffix}`
-                : `AssetDesk 暂无待处理资产${suffix}`;
-            this.assetdeskStatus.style.color = result.fromCache ? '#fb923c' : '#4ade80';
-        }
-    }
-
-    clearAssetDeskTodos() {
-        const before = this.config.todos.length;
-        this.config.todos = this.config.todos.filter(t => !t.fromAssetDesk);
-        const removed = before - this.config.todos.length;
-        this.config.assetDeskSnapshot = null;
-        if (this.assetDeskClient) this.assetDeskClient.clearSnapshot();
-        this.saveConfig();
-        this.renderTodos();
-        this.generatePreview();
-        this.assetdeskStatus.textContent = removed > 0 ? `已清理 ${removed} 个 AssetDesk 项目` : '没有已导入的 AssetDesk 项目';
-        this.assetdeskStatus.style.color = '#8888aa';
-    }
-
-    // ===== 备忘录 =====
-
-    renderMemos() {
-        if (!this.memoList) return;
-        const memos = this.config.memos || [];
-        this.memoList.innerHTML = memos.map((memo, i) => `
-            <div class="list-item" data-index="${i}">
-                <input type="checkbox" ${memo.done ? 'checked' : ''} onchange="app.toggleMemo(${i})">
-                <span class="item-text" style="${memo.done ? 'text-decoration:line-through;color:#555' : ''}">${memo.text}</span>
-                <div class="item-actions">
-                    <button onclick="app.deleteMemo(${i})">×</button>
-                </div>
-            </div>
-        `).join('') || '<div style="color:#555;font-size:12px;padding:4px 0">暂无备忘</div>';
-    }
-
-    addMemo() {
-        const input = this.newMemoInput;
-        if (!input) return;
-        const text = input.value.trim();
-        if (!text) return;
-        if (!this.config.memos) this.config.memos = [];
-        this.config.memos.push({ text, done: false, createdAt: new Date().toISOString() });
-        input.value = '';
-        this.saveConfig();
+  renderMemos() {
+    const list = document.getElementById('memoList');
+    list.innerHTML = '';
+    (this.config.memos || []).forEach((mm, idx) => {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <span class="row-title">${this.esc(mm.text)}</span>
+        <button class="icon-btn">✕</button>
+      `;
+      row.querySelector('button').addEventListener('click', () => {
+        this.config.memos.splice(idx, 1);
         this.renderMemos();
-        this.generatePreview();
-    }
+        this.scheduleSave();
+      });
+      list.appendChild(row);
+    });
+  }
 
-    toggleMemo(index) {
-        if (!this.config.memos) return;
-        this.config.memos[index].done = !this.config.memos[index].done;
-        this.saveConfig();
-        this.renderMemos();
-        this.generatePreview();
-    }
+  refreshPreview(refresh = true) {
+    const ts = Date.now();
+    const rFlag = refresh ? 1 : 0;
+    const singleImg = document.getElementById('singlePreviewImg');
+    const ovGrid = document.getElementById('overviewGrid');
 
-    deleteMemo(index) {
-        if (!this.config.memos) return;
-        this.config.memos.splice(index, 1);
-        this.saveConfig();
-        this.renderMemos();
-        this.generatePreview();
+    if (this.activeScreen === 'overview') {
+      singleImg.classList.add('hidden');
+      ovGrid.classList.remove('hidden');
+      document.getElementById('ovLeft').src = `/api/preview/m1_left?refresh=${rFlag}&t=${ts}`;
+      document.getElementById('ovRight').src = `/api/preview/m1_right?refresh=${rFlag}&t=${ts}`;
+      document.getElementById('ovM2').src = `/api/preview/m2_main?refresh=${rFlag}&t=${ts}`;
+    } else {
+      ovGrid.classList.add('hidden');
+      singleImg.classList.remove('hidden');
+      singleImg.src = `/api/preview/${this.activeScreen}?refresh=${rFlag}&t=${ts}`;
     }
+  }
 
-    /**
-     * 渲染事件列表
-     */
-    renderEvents() {
-        this.eventList.innerHTML = this.config.events.map((event, index) => `
-            <div class="list-item" data-index="${index}">
-                <div class="color-dot" style="background: ${event.color}"></div>
-                <span class="item-text">${event.name}</span>
-                <span class="item-date">${event.start.slice(5)}</span>
-                <div class="item-actions">
-                    <button onclick="app.editEvent(${index})">✎</button>
-                    <button onclick="app.deleteEvent(${index})">×</button>
-                </div>
-            </div>
-        `).join('');
+  async applyTargets(targets, btnEl) {
+    const orig = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = '同步中…';
+    try {
+      const res = await this.api('/api/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets, force: true }),
+      });
+      this.toast(`同步成功 (${Object.keys(res.screens || {}).join(', ')})`);
+      await this.loadTelemetry(false);
+      this.refreshPreview(false);
+    } catch (e) {
+      this.toast(`同步失败: ${e.message}`, true);
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = orig;
     }
+  }
 
-    /**
-     * 显示事件弹窗
-     */
-    showEventModal(index = null) {
-        this.editingEventIndex = index;
-        const event = index !== null ? this.config.events[index] : null;
-        
-        document.getElementById('eventName').value = event?.name || '';
-        document.getElementById('eventStart').value = event?.start || '';
-        document.getElementById('eventEnd').value = event?.end || '';
-        document.getElementById('eventColor').value = event?.color || '#60a5fa';
-        
-        this.eventModal.classList.add('active');
-    }
+  bindEvents() {
+    // Topbar actions
+    document.getElementById('refreshDataBtn').addEventListener('click', async () => {
+      await this.loadTelemetry(true);
+      this.refreshPreview(true);
+      this.toast('数据已刷新并重绘预览');
+    });
+    document.getElementById('applyAllBtn').addEventListener('click', async e => {
+      const btn = e.target;
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '同步中…';
+      try {
+        await this.api('/api/we-apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        await this.api('/api/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets: ['m2'], force: true }) });
+        this.toast('一号机 WE 与二号机均已同步');
+        await this.loadTelemetry(false);
+        this.refreshPreview(false);
+      } catch (err) {
+        this.toast(`同步失败: ${err.message}`, true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+      }
+    });
+    document.getElementById('applyM1Btn').addEventListener('click', async e => {
+      const btn = e.target;
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '重载中…';
+      try {
+        await this.api('/api/we-apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        this.toast('已重载一号机 Wallpaper Engine 双屏');
+      } catch (err) {
+        this.toast(`重载失败: ${err.message}`, true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+      }
+    });
+    document.getElementById('applyM2Btn').addEventListener('click', e => this.applyTargets(['m2'], e.target));
+    document.getElementById('forcePreviewBtn').addEventListener('click', () => this.refreshPreview(true));
 
-    /**
-     * 编辑事件
-     */
-    editEvent(index) {
-        this.showEventModal(index);
-    }
+    // Mode segmented
+    document.querySelectorAll('#modeSegmented button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!this.config) return;
+        this.config.mode = btn.dataset.mode;
+        this.renderConfigUI();
+        this.scheduleSave();
+      });
+    });
 
-    /**
-     * 保存事件
-     */
-    saveEvent() {
-        const event = {
-            name: document.getElementById('eventName').value,
-            start: document.getElementById('eventStart').value,
-            end: document.getElementById('eventEnd').value,
-            color: document.getElementById('eventColor').value
+    // Theme & toggles
+    document.getElementById('themePreset').addEventListener('change', e => {
+      this.config.themePreset = e.target.value;
+      this.scheduleSave();
+    });
+    document.getElementById('glowIntensity').addEventListener('input', e => {
+      const v = parseInt(e.target.value, 10);
+      document.getElementById('glowVal').textContent = `${v}%`;
+      this.config.glowIntensity = v;
+      this.scheduleSave();
+    });
+    ['iconZones', 'bezelContinuousGlow', 'lateNightNudge', 'rollingCalendar'].forEach(id => {
+      document.getElementById(id).addEventListener('change', e => {
+        this.config[id] = e.target.checked;
+        this.renderConfigUI();
+        this.scheduleSave();
+      });
+    });
+
+    // Steam Backdrops controls
+    document.getElementById('bdEnabled').addEventListener('change', e => {
+      this.config.backdrops = this.config.backdrops || {};
+      this.config.backdrops.enabled = e.target.checked;
+      this.scheduleSave();
+    });
+    document.getElementById('m2ShowNas').addEventListener('change', e => {
+      this.config.m2ShowNas = e.target.checked;
+      this.scheduleSave();
+    });
+    document.querySelectorAll('#bdTargetTabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.backdropTarget = btn.dataset.target;
+        this.renderBackdropControls();
+      });
+    });
+    document.getElementById('bdBrightness').addEventListener('input', e => {
+      const v = parseInt(e.target.value, 10);
+      document.getElementById('bdBrightnessVal').textContent = `${v}%`;
+      this.config.backdrops = this.config.backdrops || {};
+      if (this.backdropTarget === 'm2_main') {
+        this.config.backdrops.m2Brightness = v;
+      } else {
+        this.config.backdrops.brightness = v;
+      }
+      this.scheduleSave();
+    });
+    document.getElementById('bdBlur').addEventListener('input', e => {
+      const v = parseInt(e.target.value, 10);
+      document.getElementById('bdBlurVal').textContent = `${v}px`;
+      this.config.backdrops = this.config.backdrops || {};
+      if (this.backdropTarget === 'm2_main') {
+        this.config.backdrops.m2Blur = v;
+      } else {
+        this.config.backdrops.blur = v;
+      }
+      this.scheduleSave();
+    });
+    document.getElementById('bdVignette').addEventListener('input', e => {
+      const v = parseInt(e.target.value, 10);
+      document.getElementById('bdVignetteVal').textContent = `${v}%`;
+      this.config.backdrops = this.config.backdrops || {};
+      this.config.backdrops.vignette = v;
+      this.scheduleSave();
+    });
+
+    // Countdown & Thesis target
+    ['countdownName', 'countdownDate', 'countdownStart'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        this.config.countdown = {
+          name: document.getElementById('countdownName').value.trim(),
+          date: document.getElementById('countdownDate').value,
+          startDate: document.getElementById('countdownStart').value,
         };
+        this.scheduleSave();
+      });
+    });
+    document.getElementById('thesisTargetWords').addEventListener('change', e => {
+      this.config.thesisTargetWords = Math.max(5000, parseInt(e.target.value || '40000', 10));
+      this.scheduleSave();
+    });
+    ['calendarStart', 'calendarEnd'].forEach(id => {
+      document.getElementById(id).addEventListener('change', e => {
+        this.config[id] = e.target.value;
+        this.scheduleSave();
+      });
+    });
 
-        if (!event.name || !event.start || !event.end) {
-            alert('请填写完整信息');
-            return;
-        }
+    // Add Todo
+    const addTodo = () => {
+      const inp = document.getElementById('newTodoText');
+      const txt = inp.value.trim();
+      if (!txt) return;
+      const p0 = document.getElementById('newTodoP0').checked;
+      this.config.todos = this.config.todos || [];
+      this.config.todos.push({ text: txt, done: false, p0 });
+      inp.value = '';
+      document.getElementById('newTodoP0').checked = false;
+      this.renderTodos();
+      this.scheduleSave();
+    };
+    document.getElementById('addTodoBtn').addEventListener('click', addTodo);
+    document.getElementById('newTodoText').addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
 
-        if (this.editingEventIndex !== null) {
-            this.config.events[this.editingEventIndex] = event;
-        } else {
-            this.config.events.push(event);
-        }
+    // Add Memo
+    const addMemo = () => {
+      const inp = document.getElementById('newMemoText');
+      const txt = inp.value.trim();
+      if (!txt) return;
+      this.config.memos = this.config.memos || [];
+      this.config.memos.push({ text: txt, done: false });
+      inp.value = '';
+      this.renderMemos();
+      this.scheduleSave();
+    };
+    document.getElementById('addMemoBtn').addEventListener('click', addMemo);
+    document.getElementById('newMemoText').addEventListener('keydown', e => { if (e.key === 'Enter') addMemo(); });
 
-        this.saveConfig();
-        this.renderEvents();
-        this.generatePreview();
-        this.hideModal('eventModal');
-    }
+    // Screen preview tabs
+    document.querySelectorAll('#screenTabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#screenTabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeScreen = btn.dataset.screen;
+        this.refreshPreview(false);
+      });
+    });
 
-    /**
-     * 删除事件
-     */
-    deleteEvent(index) {
-        this.config.events.splice(index, 1);
-        this.saveConfig();
-        this.renderEvents();
-        this.generatePreview();
+    // Modals
+    const openModal = id => document.getElementById(id).classList.add('open');
+    const closeModal = id => document.getElementById(id).classList.remove('open');
 
-        // 启动时静默尝试从 AssetDesk 同步待办
-        this.importFromAssetDesk(true);
-    }
+    document.getElementById('openEventModalBtn').addEventListener('click', () => openModal('eventModal'));
+    document.getElementById('closeEvBtn').addEventListener('click', () => closeModal('eventModal'));
+    document.getElementById('saveEvBtn').addEventListener('click', () => {
+      const name = document.getElementById('evName').value.trim();
+      const start = document.getElementById('evStart').value;
+      const end = document.getElementById('evEnd').value || start;
+      const color = document.getElementById('evColor').value;
+      if (!name || !start) return;
+      this.config.events = this.config.events || [];
+      this.config.events.push({ name, start, end, color });
+      closeModal('eventModal');
+      this.renderEvents();
+      this.scheduleSave();
+    });
 
-    /**
-     * 渲染节点列表
-     */
-    renderMilestones() {
-        this.milestoneList.innerHTML = this.config.milestones.map((m, index) => `
-            <div class="list-item" data-index="${index}">
-                <div class="color-dot" style="background: ${m.color}"></div>
-                <span class="item-text">${m.name}</span>
-                <span class="item-date">${m.date.slice(5)}</span>
-                <div class="item-actions">
-                    <button onclick="app.editMilestone(${index})">✎</button>
-                    <button onclick="app.deleteMilestone(${index})">×</button>
-                </div>
-            </div>
-        `).join('');
-    }
+    document.getElementById('openMilestoneModalBtn').addEventListener('click', () => openModal('milestoneModal'));
+    document.getElementById('closeMsBtn').addEventListener('click', () => closeModal('milestoneModal'));
+    document.getElementById('saveMsBtn').addEventListener('click', () => {
+      const name = document.getElementById('msName').value.trim();
+      const date = document.getElementById('msDate').value;
+      const color = document.getElementById('msColor').value;
+      if (!name || !date) return;
+      this.config.milestones = this.config.milestones || [];
+      this.config.milestones.push({ name, date, color });
+      closeModal('milestoneModal');
+      this.renderMilestones();
+      this.scheduleSave();
+    });
 
-    /**
-     * 显示节点弹窗
-     */
-    showMilestoneModal(index = null) {
-        this.editingMilestoneIndex = index;
-        const m = index !== null ? this.config.milestones[index] : null;
-        
-        document.getElementById('milestoneName').value = m?.name || '';
-        document.getElementById('milestoneDate').value = m?.date || '';
-        document.getElementById('milestoneColor').value = m?.color || '#4ade80';
-        
-        this.milestoneModal.classList.add('active');
-    }
+    document.getElementById('openMarkModalBtn').addEventListener('click', () => openModal('markModal'));
+    document.getElementById('closeMkBtn').addEventListener('click', () => closeModal('markModal'));
+    document.getElementById('saveMkBtn').addEventListener('click', () => {
+      const name = document.getElementById('mkName').value.trim();
+      const date = document.getElementById('mkDate').value;
+      const time = document.getElementById('mkTime').value.trim();
+      if (!date || (!name && !time)) return;
+      this.config.marks = this.config.marks || [];
+      this.config.marks.push({ name, date, time, icon: 'MARK' });
+      closeModal('markModal');
+      this.renderMarks();
+      this.scheduleSave();
+    });
+  }
 
-    editMilestone(index) {
-        this.showMilestoneModal(index);
-    }
-
-    saveMilestone() {
-        const m = {
-            name: document.getElementById('milestoneName').value,
-            date: document.getElementById('milestoneDate').value,
-            color: document.getElementById('milestoneColor').value
-        };
-
-        if (!m.name || !m.date) {
-            alert('请填写完整信息');
-            return;
-        }
-
-        if (this.editingMilestoneIndex !== null) {
-            this.config.milestones[this.editingMilestoneIndex] = m;
-        } else {
-            this.config.milestones.push(m);
-        }
-
-        this.saveConfig();
-        this.renderMilestones();
-        this.generatePreview();
-        this.hideModal('milestoneModal');
-    }
-
-    deleteMilestone(index) {
-        this.config.milestones.splice(index, 1);
-        this.saveConfig();
-        this.renderMilestones();
-        this.generatePreview();
-
-        // 启动时静默尝试从 AssetDesk 同步待办
-        this.importFromAssetDesk(true);
-    }
-
-    /**
-     * 渲染标记列表
-     */
-    renderMarks() {
-        this.markList.innerHTML = this.config.marks.map((m, index) => `
-            <div class="list-item" data-index="${index}">
-                <span style="font-size: 16px">${m.icon}</span>
-                <span class="item-text">${m.name}</span>
-                <span class="item-date">${m.date.slice(5)} ${m.time || ''}</span>
-                <div class="item-actions">
-                    <button onclick="app.editMark(${index})">✎</button>
-                    <button onclick="app.deleteMark(${index})">×</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    showMarkModal(index = null) {
-        this.editingMarkIndex = index;
-        const m = index !== null ? this.config.marks[index] : null;
-        
-        document.getElementById('markName').value = m?.name || '';
-        document.getElementById('markDate').value = m?.date || '';
-        document.getElementById('markTime').value = m?.time || '';
-        document.getElementById('markIcon').value = m?.icon || '🎓';
-        
-        this.markModal.classList.add('active');
-    }
-
-    editMark(index) {
-        this.showMarkModal(index);
-    }
-
-    saveMark() {
-        const m = {
-            name: document.getElementById('markName').value,
-            date: document.getElementById('markDate').value,
-            time: document.getElementById('markTime').value,
-            icon: document.getElementById('markIcon').value
-        };
-
-        if (!m.name || !m.date) {
-            alert('请填写完整信息');
-            return;
-        }
-
-        if (this.editingMarkIndex !== null) {
-            this.config.marks[this.editingMarkIndex] = m;
-        } else {
-            this.config.marks.push(m);
-        }
-
-        this.saveConfig();
-        this.renderMarks();
-        this.generatePreview();
-        this.hideModal('markModal');
-    }
-
-    deleteMark(index) {
-        this.config.marks.splice(index, 1);
-        this.saveConfig();
-        this.renderMarks();
-        this.generatePreview();
-
-        // 启动时静默尝试从 AssetDesk 同步待办
-        this.importFromAssetDesk(true);
-    }
-
-    /**
-     * 隐藏弹窗
-     */
-    hideModal(id) {
-        document.getElementById(id).classList.remove('active');
-    }
-
-    /**
-     * 生成预览
-     */
-    generatePreview() {
-        const screenIndex = parseInt(this.previewScreen.value) || 0;
-        const screen = this.config.screens[screenIndex];
-        
-        this.engine.config = this.config;
-        this.engine.generate(screen.width, screen.height);
-        
-        this.lastGeneratedDate = new Date();
-        this.lastGenerated.textContent = `上次生成：${this.formatTime(this.lastGeneratedDate)}`;
-    }
-
-    /**
-     * 导出所有屏幕
-     */
-    async exportAll() {
-        for (let i = 0; i < this.config.screens.length; i++) {
-            const screen = this.config.screens[i];
-            this.engine.generate(screen.width, screen.height);
-            await this.engine.download(`wallpaper_${screen.name}_${screen.width}x${screen.height}.png`);
-            
-            // 等待一下避免浏览器限制
-            await new Promise(r => setTimeout(r, 500));
-        }
-    }
-
-    /**
-     * 启动自动更新
-     */
-    startAutoUpdate() {
-        // 每分钟检查一次日期变化
-        this.autoUpdateInterval = setInterval(() => {
-            this.checkDateChange();
-        }, 60000);
-
-        // 页面可见性变化时也检查
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                this.checkDateChange();
-            }
-        });
-    }
-
-    /**
-     * 检查日期变化
-     */
-    checkDateChange() {
-        const today = this.formatDate(new Date());
-        const lastDate = this.lastGeneratedDate ? this.formatDate(this.lastGeneratedDate) : null;
-        
-        if (lastDate !== today) {
-            console.log('日期已变化，自动更新壁纸');
-            this.generatePreview();
-            // 真正把新壁纸设置到桌面
-            this.setWallpaperViaServer();
-            this.showNotification('壁纸已自动更新', '新的一天，壁纸已重新生成');
-        }
-    }
-
-    /**
-     * 通过本地服务把当前壁纸设置到桌面
-     * 依赖 wallpaper_server.py 在本地运行（默认端口 18766）
-     */
-    async setWallpaperViaServer() {
-        const screenIndex = parseInt(this.previewScreen.value) || 0;
-        const screen = this.config.screens[screenIndex];
-        const serverUrl = this.config.wallpaperServerUrl || 'http://127.0.0.1:18766';
-
-        try {
-            // 生成全分辨率壁纸
-            this.engine.generate(screen.width, screen.height);
-            const blob = await this.engine.toBlob('image/png', 0.95);
-
-            const res = await fetch(`${serverUrl}/set`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'image/png' },
-                body: blob,
-            });
-            const data = await res.json();
-            if (data.ok) {
-                console.log('[WallCraft] 桌面壁纸已更新:', data.message);
-                this.updateAutoUpdateStatus(true);
-            } else {
-                console.warn('[WallCraft] 设置壁纸失败:', data.message);
-                this.updateAutoUpdateStatus(false);
-            }
-        } catch (e) {
-            console.warn('[WallCraft] 无法连接本地壁纸服务，请确认 wallpaper_server.py 已启动:', e);
-            this.updateAutoUpdateStatus(false);
-        }
-    }
-
-    /**
-     * 更新自动更新状态指示
-     */
-    updateAutoUpdateStatus(ok) {
-        if (!this.autoUpdateStatus) return;
-        if (ok) {
-            this.autoUpdateStatus.textContent = '🟢 自动更新';
-            this.autoUpdateStatus.style.color = '';
-        } else {
-            this.autoUpdateStatus.textContent = '🟡 本地服务未连接';
-            this.autoUpdateStatus.style.color = '#fb923c';
-        }
-    }
-
-    /**
-     * 显示通知
-     */
-    showNotification(title, body) {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(title, { body });
-        } else if ('Notification' in window && Notification.permission !== 'denied') {
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    new Notification(title, { body });
-                }
-            });
-        }
-    }
-
-    /**
-     * 辅助：格式化日期
-     */
-    formatDate(date) {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    }
-
-    /**
-     * 辅助：格式化时间
-     */
-    formatTime(date) {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-    }
+  esc(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 }
 
-// 启动应用
-let app;
-document.addEventListener('DOMContentLoaded', () => {
-    app = new WallpaperApp();
-    
-    // 请求通知权限
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
-});
+window.addEventListener('DOMContentLoaded', () => new WallCraftConsole());

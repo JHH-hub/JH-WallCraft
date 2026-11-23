@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>JH-WallCraft Left · Calendar Command</title>
+  <link rel="stylesheet" href="we_wallcraft.css">
+</head>
+<body>
+  <img id="backdropImg" class="backdrop-img" alt="">
+  <div id="ambientLayer" class="ambient-layer"></div>
+  <div class="top-scrim"></div>
+  <div class="dot-grid"></div>
+
+  <div class="left-stage">
+    <header class="left-header">
+      <div class="clock-block">
+        <div class="clock-main">
+          <span class="date-big num" style="font-size:clamp(24px,2.8vmin,38px);" id="calSpanTitle">2026.11 — 2027.01</span>
+          <span class="time-live num" style="font-size:clamp(16px,1.9vmin,26px);" id="leftClock">00:00:00</span>
+        </div>
+        <div class="clock-sub mono">COMMAND DECK // 6-WEEK HORIZON + CREATION ANALYTICS</div>
+      </div>
+
+      <div class="header-right">
+        <span class="pill pill-accent">NODE-01 // SECONDARY</span>
+        <span class="pill" id="leftSyncPill">LIVE --:--:--</span>
+      </div>
+    </header>
+
+    <!-- 6周作战日历 -->
+    <section class="glass-card cal-card">
+      <div class="cal-dow-row">
+        <span>MON 一</span><span>TUE 二</span><span>WED 三</span><span>THU 四</span><span>FRI 五</span>
+        <span class="wknd">SAT 六</span><span class="wknd">SUN 日</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </section>
+
+    <!-- 下半区：GitHub 12周热力图 + 论文文献总览 -->
+    <div class="left-bottom">
+      <section class="glass-card card-pad">
+        <div class="card-head">
+          <div class="card-title">本地代码热力图 // GITHUB 12-WEEK PULSE</div>
+          <span class="mono" style="font-size:clamp(10px,0.95vmin,13px);color:var(--accent2);" id="ghKpi">-- COMMITS</span>
+        </div>
+        <div class="gh-body">
+          <div class="heatmap-wrap" id="ghGrid"></div>
+          <div>
+            <div class="mono" style="font-size:12px;color:#94a3b8;margin-bottom:8px;font-weight:700;">TOP ACTIVE REPOS (12W)</div>
+            <div class="repo-list" id="repoList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="glass-card card-pad">
+        <div class="card-head">
+          <div class="card-title">论文与文献总览 // THESIS &amp; REFS</div>
+        </div>
+        <div class="thesis-overview-body">
+          <div class="ring-box">
+            <svg viewBox="0 0 120 120" width="100%" height="100%" style="transform:rotate(-90deg);">
+              <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="11"></circle>
+              <circle id="ringArc" cx="60" cy="60" r="48" fill="none" stroke="var(--accent)" stroke-width="11" stroke-linecap="round" stroke-dasharray="301.59" stroke-dashoffset="301.59" style="transition:stroke-dashoffset 0.6s ease;"></circle>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-pct num" id="ringPct">0%</div>
+              <div class="ring-sub" id="ringSub">0k/40k</div>
+            </div>
+          </div>
+          <div class="chapter-list" id="leftChapters" style="margin-top:0;"></div>
+        </div>
+        <div class="ref-footer" id="refFooter">文献库: -- 篇 · 今日新增 +--</div>
+      </section>
+    </div>
+  </div>
+
+  <script src="we_core.js"></script>
+  <script src="we_left.js"></script>
+</body>
+</html>

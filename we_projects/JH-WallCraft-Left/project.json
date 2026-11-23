@@ -1,0 +1,22 @@
+{
+  "contentrating": "Everyone",
+  "description": "JH-WallCraft v3 一号机左屏实时壁纸：全屏滚动 6 周作战日历、GitHub 12周提交交互热力图、论文章节环与文献库总览。",
+  "file": "index.html",
+  "general": {
+    "properties": {
+      "apibase": {
+        "index": 0,
+        "order": 100,
+        "text": "本地控制服务地址",
+        "type": "textinput",
+        "value": "http://127.0.0.1:18766"
+      }
+    },
+    "supportsaudioprocessing": false
+  },
+  "preview": "preview.jpg",
+  "tags": ["Technology", "Productivity"],
+  "title": "JH-WallCraft Left · Calendar Command (Live)",
+  "type": "web",
+  "visibility": "private"
+}

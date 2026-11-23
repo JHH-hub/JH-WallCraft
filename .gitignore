@@ -7,3 +7,12 @@ Thumbs.db
 
 # 运行时抓取的 KM 文章缓存（gen_wallpaper.js 缺失时会自动重新拉取）
 km_articles.json
+
+# JH-WallCraft v2 运行时配置、秘钥、缓存与渲染输出
+wallcraft_config.json
+.wallcraft_secret
+.cache/
+output/
+user_backdrops/
+__pycache__/
+wallcraft_m*.png
